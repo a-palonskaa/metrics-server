@@ -2,8 +2,8 @@ package main
 
 import (
 	"net/http"
-	"regexp"
 	"strconv"
+	"strings"
 )
 
 type Gauge float64
@@ -57,34 +57,24 @@ func counterHandler(w http.ResponseWriter, req *http.Request, name string, val s
 	w.WriteHeader(http.StatusOK)
 }
 
-func generalCaseHandler(w http.ResponseWriter, req *http.Request, name string, val string) {
+func generalCaseHandler(w http.ResponseWriter, req *http.Request) {
 	http.Error(w, "", http.StatusBadRequest)
 }
 
-var validPath = regexp.MustCompile(`^/update/(gauge|counter)(?:/([^/]*)(?:/(.*))?)?$`)
-
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		m := validPath.FindStringSubmatch(r.URL.Path)
-		if m == nil {
-			http.Error(w, "", http.StatusBadRequest)
+		segments := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+
+		if len(segments) == 2 || segments[2] == "" {
+			http.Error(w, "Invalid path format", http.StatusNotFound)
 			return
 		}
 
-		metricName := m[2]
-		metricValue := m[3]
-
-		if metricName == "" {
-			http.Error(w, "Metric name is required", http.StatusNotFound)
-			return
-		}
-
-		if metricValue == "" {
+		if len(segments) == 3 || segments[3] == "" {
 			http.Error(w, "Metric value is required", http.StatusBadRequest)
 			return
 		}
-
-		fn(w, r, metricName, metricValue)
+		fn(w, r, segments[2], segments[3])
 	}
 }
 
@@ -97,7 +87,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc(`/update/gauge/`, makeHandler(gaugeHandler))
 	mux.HandleFunc(`/update/counter/`, makeHandler(counterHandler))
-	mux.HandleFunc(`/`, makeHandler(generalCaseHandler))
+	mux.HandleFunc(`/`, generalCaseHandler)
 
 	err := http.ListenAndServe(`:8080`, mux)
 	if err != nil {
