@@ -28,11 +28,6 @@ func (ms *MemStorage) AddCounter(name string, val Counter) {
 }
 
 func gaugeHandler(w http.ResponseWriter, req *http.Request, name string, val string) {
-	if req.Method != http.MethodPost {
-		http.Error(w, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
-		return
-	}
-
 	gaugeValue, err := strconv.ParseFloat(val, 64)
 	if err != nil {
 		http.Error(w, "Incorrect gauge value", http.StatusBadRequest)
@@ -43,11 +38,6 @@ func gaugeHandler(w http.ResponseWriter, req *http.Request, name string, val str
 }
 
 func counterHandler(w http.ResponseWriter, req *http.Request, name string, val string) {
-	if req.Method != http.MethodPost {
-		http.Error(w, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
-		return
-	}
-
 	counterValue, err := strconv.Atoi(val)
 	if err != nil {
 		http.Error(w, "Incorrect couner value", http.StatusBadRequest)
@@ -63,6 +53,11 @@ func generalCaseHandler(w http.ResponseWriter, req *http.Request) {
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
+			return
+		}
+
 		segments := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 
 		if len(segments) == 2 || segments[2] == "" {
