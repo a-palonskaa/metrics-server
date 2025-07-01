@@ -5,18 +5,13 @@ import (
 	"runtime"
 	"time"
 
-	st "github.com/a-palonskaa/metrics-server/internal/storage"
+	st "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
 var PollInterval time.Duration = 2e9
 var ReportInterval time.Duration = 1e10
 
-type Metrics struct {
-	GaugeMetrics   map[string]st.Gauge
-	CounterMetrics map[string]st.Counter
-}
-
-func Update(metrics *Metrics, memStats *runtime.MemStats) {
+func Update(metrics *st.MetricsStorage, memStats *runtime.MemStats) {
 	runtime.ReadMemStats(memStats)
 
 	// gauge metrics
@@ -52,7 +47,7 @@ func Update(metrics *Metrics, memStats *runtime.MemStats) {
 	metrics.CounterMetrics["PollCount"]++
 }
 
-func UpdateRoutine(metrics *Metrics, memStats *runtime.MemStats) {
+func UpdateRoutine(metrics *st.MetricsStorage, memStats *runtime.MemStats) {
 	for {
 		time.Sleep(PollInterval)
 		Update(metrics, memStats)

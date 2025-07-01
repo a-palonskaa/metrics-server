@@ -7,9 +7,8 @@ import (
 	"testing"
 )
 
-//----------------------Test-Handlers----------------------
+//----------------------Test-Post-Handlers----------------------
 
-// NOTE: add to name that it is gaugeHandler in makeHandler()
 func TestGaugeHandlerInWrapper(t *testing.T) {
 	type want struct {
 		code        int
@@ -145,7 +144,7 @@ func TestGaugeHandlerInWrapper(t *testing.T) {
 			request.Header.Set("Content-Type", test.request.contentType)
 
 			w := httptest.NewRecorder()
-			MakeHandler(GaugeHandler)(w, request)
+			MakePostHandler(GaugeHandler)(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)
@@ -291,7 +290,7 @@ func TestCounterHandlerInWrapper(t *testing.T) {
 			request.Header.Set("Content-Type", test.request.contentType)
 
 			w := httptest.NewRecorder()
-			MakeHandler(CounterHandler)(w, request)
+			MakePostHandler(CounterHandler)(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)
@@ -358,6 +357,104 @@ func TestGeneralCaseHandler(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			GeneralCaseHandler(w, request)
+
+			res := w.Result()
+			assert.Equal(t, test.want.code, res.StatusCode)
+
+			defer res.Body.Close()
+			//			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
+		})
+	}
+}
+
+//----------------------Test-Get-Handlers----------------------
+
+func TestGaugeValueHandlerInWrapper(t *testing.T) {
+	type want struct {
+		code        int
+		contentType string
+	}
+
+	type request struct {
+		method      string
+		url         string
+		contentType string
+	}
+
+	tests := []struct {
+		name    string
+		request request
+		want    want
+	}{
+		{
+			name: "method-post",
+			request: request{
+				method: http.MethodPost,
+				url:    "/value/gauge/Frees",
+			},
+			want: want{
+				code: 405,
+			},
+		},
+		{
+			name: "no-name#1",
+			request: request{
+				method: http.MethodGet,
+				url:    "/value/gauge",
+			},
+			want: want{
+				code: 404,
+			},
+		},
+		{
+			name: "no-name#2",
+			request: request{
+				method: http.MethodGet,
+				url:    "/value/gauge",
+			},
+			want: want{
+				code: 404,
+			},
+		},
+		{
+			name: "no-name#3",
+			request: request{
+				method: http.MethodGet,
+				url:    "/value/gauge//",
+			},
+			want: want{
+				code: 404,
+			},
+		},
+		{
+			name: "non-existing-name#1",
+			request: request{
+				method: http.MethodGet,
+				url:    "/value/gauge/name1",
+			},
+			want: want{
+				code: http.StatusNotFound,
+			},
+		},
+		{
+			name: "working-case#1",
+			request: request{
+				method: http.MethodGet,
+				url:    "/value/gauge/Frees",
+			},
+			want: want{
+				code: 200,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(test.request.method, test.request.url, nil)
+			request.Header.Set("Content-Type", test.request.contentType)
+
+			w := httptest.NewRecorder()
+			MakeGetHandler(GaugeValueHandler)(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)

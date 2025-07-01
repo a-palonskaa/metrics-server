@@ -1,8 +1,9 @@
 package metrics
 
 import (
-	st "github.com/a-palonskaa/metrics-server/internal/storage"
 	"testing"
+
+	st "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
 //----------------------Test-MemStorage-Methods----------------------
@@ -91,9 +92,9 @@ func TestMemStorage_AddGauge(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ms := &st.MemStorage{
-				Gauge:   tt.fields.Gauge,
-				Counter: tt.fields.Counter,
+			ms := &st.MetricsStorage{
+				GaugeMetrics:   tt.fields.Gauge,
+				CounterMetrics: tt.fields.Counter,
 			}
 			ms.AddGauge(tt.args.name, tt.args.val)
 		})
@@ -183,9 +184,9 @@ func TestMemStorage_AddCounter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ms := &st.MemStorage{
-				Gauge:   tt.fields.Gauge,
-				Counter: tt.fields.Counter,
+			ms := &st.MetricsStorage{
+				GaugeMetrics:   tt.fields.Gauge,
+				CounterMetrics: tt.fields.Counter,
 			}
 			ms.AddCounter(tt.args.name, tt.args.val)
 		})

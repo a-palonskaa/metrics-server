@@ -12,7 +12,7 @@ import (
 
 func main() {
 	memStats := &runtime.MemStats{}
-	metrics := &mt.Metrics{make(map[string]st.Gauge, 3), make(map[string]st.Counter, 1)}
+	metrics := &mt.MetricsStorage{make(map[string]st.Gauge, 3), make(map[string]st.Counter, 1)}
 
 	mt.Update(metrics, memStats)
 	go mt.UpdateRoutine(metrics, memStats)
