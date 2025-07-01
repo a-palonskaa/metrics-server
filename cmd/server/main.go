@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/go-chi/chi/v5"
 	"net/http"
 
 	hs "github.com/a-palonskaa/metrics-server/internal/handlers/server"
-	"github.com/go-chi/chi/v5"
 )
 
 func main() {
@@ -12,13 +12,31 @@ func main() {
 
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/", hs.AllValueHandler)
-		r.Get("/gauge/", hs.MakeGetHandler(hs.GaugeValueHandler))
-		r.Get("/counter/", hs.MakeGetHandler(hs.CounterValueHandler))
+		r.Route("/gauge", func(r chi.Router) {
+			r.Get("/", hs.NoNameHandler)
+			r.Get("/{name}", hs.GaugeGetHandler)
+		})
+		r.Route("/counter", func(r chi.Router) {
+			r.Get("/", hs.NoNameHandler)
+			r.Get("/{name}", hs.CounterGetHandler)
+		})
 	})
 
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/gauge/", hs.MakePostHandler(hs.GaugeHandler))
-		r.Post("/counter/", hs.MakePostHandler(hs.CounterHandler))
+		r.Route("/gauge", func(r chi.Router) {
+			r.Post("/", hs.NoNameHandler)
+			r.Route("/{name}", func(r chi.Router) {
+				r.Post("/*", hs.NoValueHandler)
+				r.Post("/{value}", hs.GaugePostHandler)
+			})
+		})
+		r.Route("/counter", func(r chi.Router) {
+			r.Post("/", hs.NoNameHandler)
+			r.Route("/{name}", func(r chi.Router) {
+				r.Post("/*", hs.NoValueHandler)
+				r.Post("/{value}", hs.CounterPostHandler)
+			})
+		})
 	})
 
 	r.Handle("/", http.HandlerFunc(hs.GeneralCaseHandler))

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -27,262 +28,257 @@ func TestGaugeHandlerInWrapper(t *testing.T) {
 		want    want
 	}{
 		{
-			name: "method-get",
-			request: request{
-				method: http.MethodGet,
-				url:    "/update/gauge/meow/12",
-			},
-			want: want{
-				code: 405,
-			},
-		},
-		{
-			name: "no-name#1",
+			name: "no-name-gauge#1",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/gauge",
 			},
 			want: want{
-				code: 404,
+				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "no-name#2",
+			name: "no-name-gauge#2",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/gauge/",
 			},
 			want: want{
-				code: 404,
+				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "no-name#3",
+			name: "no-name-gauge#3",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/gauge//",
 			},
 			want: want{
-				code: 404,
+				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "no-name#3",
+			name: "no-name-gauge#4",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/gauge//3",
 			},
 			want: want{
-				code: 404,
+				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "no-val#1",
+			name: "no-val-gauge#1",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/gauge/name",
 			},
 			want: want{
-				code: 400,
+				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "no-val#2",
+			name: "no-val-gauge#2",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/gauge/name/",
 			},
 			want: want{
-				code: 400,
+				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "no-val#3",
+			name: "no-val-gauge#3",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/gauge/name//",
 			},
 			want: want{
-				code: 400,
+				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "no-val#4",
+			name: "no-val-gauge#4",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/gauge/name//fff",
 			},
 			want: want{
-				code: 400,
+				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "no-val#5",
+			name: "no-val-gauge#5",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/gauge/name/fff",
 			},
 			want: want{
-				code: 400,
+				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "working-case#1",
+			name: "working-case-gauge#1",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/gauge/name/12.1",
 			},
 			want: want{
-				code: 200,
-			},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(test.request.method, test.request.url, nil)
-			request.Header.Set("Content-Type", test.request.contentType)
-
-			w := httptest.NewRecorder()
-			MakePostHandler(GaugeHandler)(w, request)
-
-			res := w.Result()
-			assert.Equal(t, test.want.code, res.StatusCode)
-
-			defer res.Body.Close()
-			//			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
-		})
-	}
-}
-
-func TestCounterHandlerInWrapper(t *testing.T) {
-	type want struct {
-		code        int
-		contentType string
-	}
-
-	type request struct {
-		method      string
-		url         string
-		contentType string
-	}
-
-	tests := []struct {
-		name    string
-		request request
-		want    want
-	}{
-		{
-			name: "method-get",
-			request: request{
-				method: http.MethodGet,
-				url:    "/update/counter/meow/12",
-			},
-			want: want{
-				code: 405,
+				code: http.StatusOK,
 			},
 		},
 		{
-			name: "no-name#1",
+			name: "no-name-counter#1",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/counter",
 			},
 			want: want{
-				code: 404,
+				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "no-name#2",
+			name: "no-name-counter#2",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/counter/",
 			},
 			want: want{
-				code: 404,
+				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "no-name#3",
+			name: "no-name-counter#3",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/counter//",
 			},
 			want: want{
-				code: 404,
+				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "no-name#3",
+			name: "no-name-counter#3",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/counter//3",
 			},
 			want: want{
-				code: 404,
+				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "no-val#1",
+			name: "no-val-counter#1",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/counter/name",
 			},
 			want: want{
-				code: 400,
+				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "no-val#2",
+			name: "no-val-counter#2",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/counter/name/",
 			},
 			want: want{
-				code: 400,
+				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "no-val#3",
+			name: "no-val-counter#3",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/counter/name//",
 			},
 			want: want{
-				code: 400,
+				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "no-val#4",
+			name: "no-val-counter#4",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/counter/name//fff",
 			},
 			want: want{
-				code: 400,
+				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "no-val#5",
+			name: "no-val-counter#5",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/counter/name/fff",
 			},
 			want: want{
-				code: 400,
+				code: http.StatusBadRequest,
 			},
 		},
 		{
-			name: "working-case#1",
+			name: "working-case-counter#1",
 			request: request{
 				method: http.MethodPost,
 				url:    "/update/counter/counter/1",
 			},
 			want: want{
-				code: 200,
+				code: http.StatusOK,
+			},
+		},
+		{
+			name: "no-type",
+			request: request{
+				method: http.MethodPost,
+				url:    "/update",
+			},
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "incorr-type",
+			request: request{
+				method: http.MethodPost,
+				url:    "/update/name",
+			},
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name: "incorr-path",
+			request: request{
+				method: http.MethodPost,
+				url:    "/name/",
+			},
+			want: want{
+				code: http.StatusBadRequest,
 			},
 		},
 	}
+
+	r := chi.NewRouter()
+	r.Route("/update", func(r chi.Router) {
+		r.Route("/gauge", func(r chi.Router) {
+			r.Post("/*", NoNameHandler)
+			r.Route("/{name}", func(r chi.Router) {
+				r.Post("/*", NoValueHandler)
+				r.Post("/{value}", GaugePostHandler)
+			})
+		})
+		r.Route("/counter", func(r chi.Router) {
+			r.Post("/*", NoNameHandler)
+			r.Route("/{name}", func(r chi.Router) {
+				r.Post("/*", NoValueHandler)
+				r.Post("/{value}", CounterPostHandler)
+			})
+		})
+		r.Post("/*", GeneralCaseHandler)
+	})
+
+	r.Handle("/*", http.HandlerFunc(GeneralCaseHandler))
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -290,7 +286,7 @@ func TestCounterHandlerInWrapper(t *testing.T) {
 			request.Header.Set("Content-Type", test.request.contentType)
 
 			w := httptest.NewRecorder()
-			MakePostHandler(CounterHandler)(w, request)
+			r.ServeHTTP(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)
@@ -319,115 +315,37 @@ func TestGeneralCaseHandler(t *testing.T) {
 		want    want
 	}{
 		{
-			name: "no-type",
-			request: request{
-				method: http.MethodGet,
-				url:    "/update",
-			},
-			want: want{
-				code: 400,
-			},
-		},
-		{
-			name: "incorr-type",
-			request: request{
-				method: http.MethodGet,
-				url:    "/update/name",
-			},
-			want: want{
-				code: 400,
-			},
-		},
-		{
-			name: "incorr-path",
-			request: request{
-				method: http.MethodGet,
-				url:    "/name/",
-			},
-			want: want{
-				code: 400,
-			},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(test.request.method, test.request.url, nil)
-			request.Header.Set("Content-Type", test.request.contentType)
-
-			w := httptest.NewRecorder()
-			GeneralCaseHandler(w, request)
-
-			res := w.Result()
-			assert.Equal(t, test.want.code, res.StatusCode)
-
-			defer res.Body.Close()
-			//			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
-		})
-	}
-}
-
-//----------------------Test-Get-Handlers----------------------
-
-func TestGaugeValueHandlerInWrapper(t *testing.T) {
-	type want struct {
-		code        int
-		contentType string
-	}
-
-	type request struct {
-		method      string
-		url         string
-		contentType string
-	}
-
-	tests := []struct {
-		name    string
-		request request
-		want    want
-	}{
-		{
-			name: "method-post",
-			request: request{
-				method: http.MethodPost,
-				url:    "/value/gauge/Frees",
-			},
-			want: want{
-				code: 405,
-			},
-		},
-		{
-			name: "no-name#1",
+			name: "no-name-gauge#1",
 			request: request{
 				method: http.MethodGet,
 				url:    "/value/gauge",
 			},
 			want: want{
-				code: 404,
+				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "no-name#2",
+			name: "no-name-gauge#2",
 			request: request{
 				method: http.MethodGet,
 				url:    "/value/gauge",
 			},
 			want: want{
-				code: 404,
+				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "no-name#3",
+			name: "no-name-gauge#3",
 			request: request{
 				method: http.MethodGet,
 				url:    "/value/gauge//",
 			},
 			want: want{
-				code: 404,
+				code: http.StatusNotFound,
 			},
 		},
 		{
-			name: "non-existing-name#1",
+			name: "non-existing-name-gauge#1",
 			request: request{
 				method: http.MethodGet,
 				url:    "/value/gauge/name1",
@@ -437,16 +355,31 @@ func TestGaugeValueHandlerInWrapper(t *testing.T) {
 			},
 		},
 		{
-			name: "working-case#1",
+			name: "working-case-gauge#1",
 			request: request{
 				method: http.MethodGet,
 				url:    "/value/gauge/Frees",
 			},
 			want: want{
-				code: 200,
+				code: http.StatusOK,
 			},
 		},
 	}
+
+	r := chi.NewRouter()
+	r.Route("/value", func(r chi.Router) {
+		r.Get("/*", AllValueHandler)
+		r.Route("/gauge", func(r chi.Router) {
+			r.Get("/*", NoNameHandler)
+			r.Get("/{name}", GaugeGetHandler)
+		})
+		r.Route("/counter", func(r chi.Router) {
+			r.Get("/*", NoNameHandler)
+			r.Get("/{name}", CounterGetHandler)
+		})
+		r.Get("/*", GeneralCaseHandler)
+	})
+	r.Handle("/", http.HandlerFunc(GeneralCaseHandler))
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -454,7 +387,7 @@ func TestGaugeValueHandlerInWrapper(t *testing.T) {
 			request.Header.Set("Content-Type", test.request.contentType)
 
 			w := httptest.NewRecorder()
-			MakeGetHandler(GaugeValueHandler)(w, request)
+			r.ServeHTTP(w, request)
 
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)

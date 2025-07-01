@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -11,7 +12,20 @@ import (
 	st "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
-func GaugeHandler(w http.ResponseWriter, req *http.Request, name string, val string) {
+func GaugePostHandler(w http.ResponseWriter, req *http.Request) {
+	name := chi.URLParam(req, "name")
+	val := chi.URLParam(req, "value")
+
+	if name == "" {
+		http.Error(w, "", http.StatusNotFound)
+		return
+	}
+
+	if val == "" {
+		http.Error(w, "", http.StatusBadRequest)
+		return
+	}
+
 	gaugeValue, err := strconv.ParseFloat(val, 64)
 	if err != nil {
 		http.Error(w, "Incorrect gauge value", http.StatusBadRequest)
@@ -21,7 +35,20 @@ func GaugeHandler(w http.ResponseWriter, req *http.Request, name string, val str
 	w.WriteHeader(http.StatusOK)
 }
 
-func CounterHandler(w http.ResponseWriter, req *http.Request, name string, val string) {
+func CounterPostHandler(w http.ResponseWriter, req *http.Request) {
+	name := chi.URLParam(req, "name")
+	val := chi.URLParam(req, "value")
+
+	if name == "" {
+		http.Error(w, "", http.StatusNotFound)
+		return
+	}
+
+	if val == "" {
+		http.Error(w, "", http.StatusBadRequest)
+		return
+	}
+
 	counterValue, err := strconv.Atoi(val)
 	if err != nil {
 		http.Error(w, "Incorrect couner value", http.StatusBadRequest)
@@ -35,47 +62,17 @@ func GeneralCaseHandler(w http.ResponseWriter, req *http.Request) {
 	http.Error(w, "", http.StatusBadRequest)
 }
 
-func MakePostHandler(fn func(http.ResponseWriter, *http.Request, string, string)) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
-			return
-		}
-
-		segments := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-
-		if len(segments) == 2 || segments[2] == "" {
-			http.Error(w, "Invalid path format", http.StatusNotFound)
-			return
-		}
-
-		if len(segments) == 3 || segments[3] == "" {
-			http.Error(w, "Val s required", http.StatusBadRequest)
-			return
-		}
-		fn(w, r, segments[2], segments[3])
-	}
+func NoNameHandler(w http.ResponseWriter, req *http.Request) {
+	http.Error(w, "", http.StatusNotFound)
 }
 
-func MakeGetHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Only Get value-requests are allowed!", http.StatusMethodNotAllowed)
-			return
-		}
-
-		segments := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-		if len(segments) == 2 || segments[1] == "" {
-			http.Error(w, "Metric type is required", http.StatusNotFound)
-			return
-		}
-
-		if segments[2] == "" {
-			http.Error(w, "Metric name is required", http.StatusBadRequest)
-			return
-		}
-		fn(w, r, segments[2])
+func NoValueHandler(w http.ResponseWriter, req *http.Request) {
+	name := chi.URLParam(req, "name")
+	if name == "" {
+		http.Error(w, "", http.StatusNotFound)
+		return
 	}
+	http.Error(w, "", http.StatusBadRequest) //DEBUG - NOVAL
 }
 
 func AllValueHandler(w http.ResponseWriter, req *http.Request) {
@@ -110,7 +107,9 @@ func AllValueHandler(w http.ResponseWriter, req *http.Request) {
 
 }
 
-func GaugeValueHandler(w http.ResponseWriter, req *http.Request, name string) {
+func GaugeGetHandler(w http.ResponseWriter, req *http.Request) {
+	name := chi.URLParam(req, "name")
+
 	if !st.MS.IsGaugeAllowed(name) {
 		http.Error(w, "Incorrect gauge value", http.StatusNotFound)
 		return
@@ -127,7 +126,9 @@ func GaugeValueHandler(w http.ResponseWriter, req *http.Request, name string) {
 	fmt.Fprintf(w, "</body></html>")
 }
 
-func CounterValueHandler(w http.ResponseWriter, req *http.Request, name string) {
+func CounterGetHandler(w http.ResponseWriter, req *http.Request) {
+	name := chi.URLParam(req, "name")
+
 	if !st.MS.IsCounterAllowed(name) {
 		http.Error(w, "Incorrect counter value", http.StatusNotFound)
 		return
