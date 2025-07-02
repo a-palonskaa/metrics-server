@@ -1,7 +1,10 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"net/http"
+	"os"
 	"runtime"
 	"time"
 
@@ -19,16 +22,16 @@ func main() {
 	client := &http.Client{}
 	for {
 		for key, val := range st.MS.GaugeMetrics {
-			if err := ha.SendRequest(client, "gauge", key, val); err != nil {
+			if err := ha.SendRequest(client, *endpointAddr, "gauge", key, val); err != nil {
 				return
 			}
 		}
 
 		for key, val := range st.MS.CounterMetrics {
-			if err := ha.SendRequest(client, "counter", key, val); err != nil {
+			if err := ha.SendRequest(client, *endpointAddr, "counter", key, val); err != nil {
 				return
 			}
 		}
-		time.Sleep(mt.ReportInterval)
+		time.Sleep(time.Duration(mt.ReportInterval))
 	}
 }

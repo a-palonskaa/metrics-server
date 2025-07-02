@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 
@@ -41,5 +42,5 @@ func main() {
 
 	r.Handle("/", http.HandlerFunc(hs.GeneralCaseHandler))
 
-	http.ListenAndServe(":8080", r)
+	http.ListenAndServe(*endpointAddr, r)
 }
