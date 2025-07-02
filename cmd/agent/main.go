@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	"net/http"
 	"os"
 	"runtime"
@@ -15,12 +16,35 @@ import (
 	st "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
+type Config struct {
+	EndpointAddr   string `env:"ADDRESS"`
+	ReportInterval int    `env:"REPORT_INTERVAL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
+}
+
 func flagsInit() {
 	flag.StringVar(&EndpointAddr, "a", "localhost:8080", "endpoint HTTP-server adress")
 	flag.IntVar(&mt.PollInterval, "p", 2, "PollInterval value")
 	flag.IntVar(&mt.ReportInterval, "r", 10, "ReportInterval value")
 
 	flag.Parse()
+
+	var cfg Config
+	err := env.Parse(&cfg)
+	if err != nil {
+		fmt.Printf("environment variables parsing error\n")
+		os.Exit(1)
+	}
+
+	if cfg.EndpointAddr != " " {
+		EndpointAddr = cfg.EndpointAddr
+	}
+	if cfg.PollInterval != 0 {
+		mt.PollInterval = cfg.PollInterval
+	}
+	if cfg.ReportInterval != 0 {
+		mt.ReportInterval = cfg.PollInterval
+	}
 
 	if mt.PollInterval <= 0 || mt.ReportInterval <= 0 {
 		fmt.Printf("Error: PollInterval & ReportInterval must be greater than 0\n")

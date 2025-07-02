@@ -2,17 +2,35 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 	"net/http"
+	"os"
 
 	hs "github.com/a-palonskaa/metrics-server/internal/handlers/server"
 )
+
+type Config struct {
+	EndpointAddr string `env:"ADDRESS"`
+}
 
 var EndpointAddr string
 
 func main() {
 	flag.StringVar(&EndpointAddr, "a", "localhost:8080", "endpoint HTTP-server adress")
 	flag.Parse()
+
+	var cfg Config
+	err := env.Parse(&cfg)
+	if err != nil {
+		fmt.Printf("environment variables parsing error\n")
+		os.Exit(1)
+	}
+
+	if cfg.EndpointAddr != " " {
+		EndpointAddr = cfg.EndpointAddr
+	}
 
 	r := chi.NewRouter()
 
