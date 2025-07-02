@@ -1,13 +1,19 @@
 package main
 
 import (
+	"flag"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 
 	hs "github.com/a-palonskaa/metrics-server/internal/handlers/server"
 )
 
+var EndpointAddr string
+
 func main() {
+	flag.StringVar(&EndpointAddr, "a", "localhost:8080", "endpoint HTTP-server adress")
+	flag.Parse()
+
 	r := chi.NewRouter()
 
 	r.Route("/value", func(r chi.Router) {
@@ -41,5 +47,5 @@ func main() {
 
 	r.Handle("/", http.HandlerFunc(hs.GeneralCaseHandler))
 
-	http.ListenAndServe(":8080", r)
+	http.ListenAndServe(EndpointAddr, r)
 }

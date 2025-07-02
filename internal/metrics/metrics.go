@@ -8,8 +8,8 @@ import (
 	st "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
-var PollInterval time.Duration = 2e9
-var ReportInterval time.Duration = 1e10
+var PollInterval int = 2
+var ReportInterval int = 10
 
 func Update(metrics *st.MetricsStorage, memStats *runtime.MemStats) {
 	runtime.ReadMemStats(memStats)
@@ -49,7 +49,7 @@ func Update(metrics *st.MetricsStorage, memStats *runtime.MemStats) {
 
 func UpdateRoutine(metrics *st.MetricsStorage, memStats *runtime.MemStats) {
 	for {
-		time.Sleep(PollInterval)
+		time.Sleep(time.Duration(PollInterval) * 1e9)
 		Update(metrics, memStats)
 	}
 }

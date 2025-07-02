@@ -6,8 +6,8 @@ import (
 	"net/http"
 )
 
-func SendRequest(client *http.Client, kind string, name string, val interface{}) error {
-	url := fmt.Sprintf("http://localhost:8080/update/%s/%s/%v", kind, name, val)
+func SendRequest(client *http.Client, endpoint string, kind string, name string, val interface{}) error {
+	url := fmt.Sprintf("http://%s/update/%s/%s/%v", endpoint, kind, name, val)
 	response, err := client.Post(url, "text/html", nil)
 	if err != nil {
 		fmt.Println(err)

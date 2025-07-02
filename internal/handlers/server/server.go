@@ -115,15 +115,11 @@ func GaugeGetHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "text/plain")
 
 	mt.Update(st.MS, &runtime.MemStats{})
-	fmt.Fprintf(w, "<html><body><h1>%s</h1>", name)
-
 	val, _ := st.MS.GetGaugeValue(name)
-	fmt.Fprintf(w, "<h2>value: %v</h2>\n", val)
-	fmt.Fprintf(w, "</body></html>")
+	w.Write([]byte(strconv.FormatFloat(float64(val), 'f', -1, 64)))
 }
 
 func CounterGetHandler(w http.ResponseWriter, req *http.Request) {
@@ -134,13 +130,9 @@ func CounterGetHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "text/plain")
 
 	mt.Update(st.MS, &runtime.MemStats{})
-	fmt.Fprintf(w, "<html><body><h1>%s</h1>", name)
-
 	val, _ := st.MS.GetCounterValue(name)
-	fmt.Fprintf(w, "<h2>value: %v</h2>\n", val)
-	fmt.Fprintf(w, "</body></html>")
+	w.Write([]byte(strconv.FormatInt(int64(val), 10)))
 }

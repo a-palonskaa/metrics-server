@@ -52,7 +52,7 @@ func (m *MetricsStorage) AddCounter(name string, val Counter) {
 	if !m.IsCounterAllowed(name) {
 		m.AllowedCounterNames = append(m.AllowedCounterNames, name)
 	}
-	m.CounterMetrics[name] = val
+	m.CounterMetrics[name] += val
 }
 
 func (m *MetricsStorage) GetGaugeValue(name string) (Gauge, bool) {
