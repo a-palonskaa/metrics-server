@@ -28,7 +28,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if cfg.EndpointAddr != " " {
+	if cfg.EndpointAddr != "" {
 		EndpointAddr = cfg.EndpointAddr
 	}
 
@@ -66,5 +66,6 @@ func main() {
 
 	r.Handle("/", http.HandlerFunc(hs.GeneralCaseHandler))
 
+	fmt.Println("addris", EndpointAddr, "kjh", EndpointAddr == "")
 	http.ListenAndServe(EndpointAddr, r)
 }

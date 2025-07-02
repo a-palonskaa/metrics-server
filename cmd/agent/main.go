@@ -36,7 +36,7 @@ func flagsInit() {
 		os.Exit(1)
 	}
 
-	if cfg.EndpointAddr != " " {
+	if cfg.EndpointAddr != "" {
 		EndpointAddr = cfg.EndpointAddr
 	}
 	if cfg.PollInterval != 0 {
