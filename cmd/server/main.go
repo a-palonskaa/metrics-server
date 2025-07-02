@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 
@@ -48,5 +49,8 @@ func main() {
 
 	r.Handle("/", http.HandlerFunc(hs.GeneralCaseHandler))
 
-	http.ListenAndServe(EndpointAddr, r)
+	err := http.ListenAndServe(EndpointAddr, r)
+	if err != nil {
+		return fmt.Errorf("Server error: %w", err)
+	}
 }

@@ -57,13 +57,13 @@ func main() {
 	for {
 		for key, val := range st.MS.GaugeMetrics {
 			if err := ha.SendRequest(client, EndpointAddr, "gauge", key, val); err != nil {
-				return
+				fmt.Printf("Agent: Error sending gauge metric %s: %v\n", key, err)
 			}
 		}
 
 		for key, val := range st.MS.CounterMetrics {
 			if err := ha.SendRequest(client, EndpointAddr, "counter", key, val); err != nil {
-				return
+				fmt.Printf("Agent: Error sending counter metric %s: %v\n", key, err)
 			}
 		}
 		time.Sleep(time.Duration(mt.ReportInterval) * 1e9)

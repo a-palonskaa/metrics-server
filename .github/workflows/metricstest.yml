@@ -156,7 +156,7 @@ jobs:
           github.head_ref == 'iter23' ||
           github.head_ref == 'iter24'
         run: |
-          metricstest -test.v -test.run=^TestIteration3[B]*$ \
+          metricstest -test.v -test.run=^TestIteration3[AB]*$ \
             -source-path=. \
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server
