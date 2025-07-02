@@ -128,6 +128,7 @@ jobs:
           metricstest -test.v -test.run=^TestIteration2[AB]*$ \
             -source-path=. \
             -agent-binary-path=cmd/agent/agent
+            -binary-path=cmd/server/server
 
       - name: "Code increment #3"
         if: |
