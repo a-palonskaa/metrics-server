@@ -51,6 +51,6 @@ func main() {
 
 	err := http.ListenAndServe(EndpointAddr, r)
 	if err != nil {
-		return fmt.Errorf("Server error: %w", err)
+		fmt.Errorf("Server error: %w", err)
 	}
 }
