@@ -16,7 +16,7 @@ import (
 )
 
 func flagsInit() {
-	flag.StringVar(&EndpointAddr, "a", "localhost:8080", "endpoint HTTP-server adress")
+	flag.StringVar(&EndpointAddr, "a", ":8080", "endpoint HTTP-server adress")
 	flag.IntVar(&mt.PollInterval, "p", 2, "PollInterval value")
 	flag.IntVar(&mt.ReportInterval, "r", 10, "ReportInterval value")
 

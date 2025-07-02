@@ -43,6 +43,7 @@ func main() {
 				r.Post("/{value}", hs.CounterPostHandler)
 			})
 		})
+		r.Post("/*", hs.GeneralCaseHandler)
 	})
 
 	r.Handle("/", http.HandlerFunc(hs.GeneralCaseHandler))
