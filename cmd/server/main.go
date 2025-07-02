@@ -49,8 +49,5 @@ func main() {
 
 	r.Handle("/", http.HandlerFunc(hs.GeneralCaseHandler))
 
-	err := http.ListenAndServe(EndpointAddr, r)
-	if err != nil {
-		fmt.Errorf("Server error: %w", err)
-	}
+	http.ListenAndServe(EndpointAddr, r)
 }
