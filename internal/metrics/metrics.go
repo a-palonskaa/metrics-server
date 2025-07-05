@@ -8,8 +8,8 @@ import (
 	st "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
-var PollInterval int = 2
-var ReportInterval int = 10
+var PollInterval time.Duration = 2e9
+var ReportInterval time.Duration = 1e10
 
 func Update(metrics *st.MetricsStorage, memStats *runtime.MemStats) {
 	runtime.ReadMemStats(memStats)

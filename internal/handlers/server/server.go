@@ -1,8 +1,10 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/go-chi/chi/v5"
+	"log"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -86,25 +88,42 @@ func AllValueHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	mt.Update(st.MS, &runtime.MemStats{})
-	fmt.Fprintf(w, "<html><body><h1>MetricsStorage</h1>")
-	fmt.Fprintf(w, "<h2>Gauge MetricsStorage</h2>")
-	fmt.Fprintf(w, "<table border='1' cellpadding='5' cellspacing='0'>")
-	fmt.Fprintf(w, "<tr><th>Name</th><th>Value</th></tr>")
+
+	var buf bytes.Buffer
+
+	buf.WriteString(`
+        <html>
+        <body>
+            <h1>MetricsStorage</h1>
+            <h2>Gauge MetricsStorage</h2>
+            <table border='1' cellpadding='5' cellspacing='0'>
+                <tr><th>Name</th><th>Value</th></tr>
+    `)
+
 	for _, key := range st.MS.AllowedGaugeNames {
-		fmt.Fprintf(w, "<tr><td>%s</td><td>%v</td></tr>\n", key, st.MS.GaugeMetrics[key])
+		fmt.Fprintf(&buf, "<tr><td>%s</td><td>%v</td></tr>\n", key, st.MS.GaugeMetrics[key])
 	}
-	fmt.Fprintln(w, "</table>")
 
-	fmt.Fprintf(w, "<h2>Counter MetricsStorage</h2>")
-	fmt.Fprintf(w, "<table border='1' cellpadding='5' cellspacing='0'>")
-	fmt.Fprintf(w, "<tr><th>Name</th><th>Value</th></tr>")
+	buf.WriteString(`
+            </table>
+            <h2>Counter MetricsStorage</h2>
+            <table border='1' cellpadding='5' cellspacing='0'>
+                <tr><th>Name</th><th>Value</th></tr>
+    `)
+
 	for _, key := range st.MS.AllowedCounterNames {
-		fmt.Fprintf(w, "<tr><td>%s</td><td>%v</td></tr>\n", key, st.MS.CounterMetrics[key])
+		fmt.Fprintf(&buf, "<tr><td>%s</td><td>%v</td></tr>\n", key, st.MS.CounterMetrics[key])
 	}
-	fmt.Fprintf(w, "</table>")
 
-	fmt.Fprintf(w, "</body></html>")
+	buf.WriteString(`
+            </table>
+            </body>
+            </html>
+    `)
 
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		log.Printf("Failed to write response: %v", err)
+	}
 }
 
 func GaugeGetHandler(w http.ResponseWriter, req *http.Request) {
@@ -119,7 +138,9 @@ func GaugeGetHandler(w http.ResponseWriter, req *http.Request) {
 
 	mt.Update(st.MS, &runtime.MemStats{})
 	val, _ := st.MS.GetGaugeValue(name)
-	w.Write([]byte(strconv.FormatFloat(float64(val), 'f', -1, 64)))
+	if _, err := w.Write([]byte(strconv.FormatFloat(float64(val), 'f', -1, 64))); err != nil {
+		log.Printf("error writing gauge value: %s", err)
+	}
 }
 
 func CounterGetHandler(w http.ResponseWriter, req *http.Request) {
@@ -134,5 +155,7 @@ func CounterGetHandler(w http.ResponseWriter, req *http.Request) {
 
 	mt.Update(st.MS, &runtime.MemStats{})
 	val, _ := st.MS.GetCounterValue(name)
-	w.Write([]byte(strconv.FormatInt(int64(val), 10)))
+	if _, err := w.Write([]byte(strconv.FormatInt(int64(val), 10))); err != nil {
+		log.Printf("error writing counter value: %s", err)
+	}
 }

@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -14,11 +15,13 @@ func SendRequest(client *http.Client, endpoint string, kind string, name string,
 		return err
 	}
 
-	_, err = io.Copy(io.Discard, response.Body)
-	response.Body.Close()
-	if err != nil {
+	if _, err = io.Copy(io.Discard, response.Body); err != nil {
 		fmt.Println(err)
 		return err
+	}
+
+	if err := response.Body.Close(); err != nil {
+		log.Printf("failed to lcose response body: %s", err)
 	}
 	return nil
 }

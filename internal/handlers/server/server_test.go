@@ -3,6 +3,7 @@ package server
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,14 +13,14 @@ import (
 
 func TestGaugeHandlerInWrapper(t *testing.T) {
 	type want struct {
-		code        int
-		contentType string
+		code int
+		//		contentType string
 	}
 
 	type request struct {
-		method      string
-		url         string
-		contentType string
+		method string
+		url    string
+		//		contentType string
 	}
 
 	tests := []struct {
@@ -283,7 +284,7 @@ func TestGaugeHandlerInWrapper(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(test.request.method, test.request.url, nil)
-			request.Header.Set("Content-Type", test.request.contentType)
+			//			request.Header.Set("Content-Type", test.request.contentType)
 
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, request)
@@ -291,7 +292,11 @@ func TestGaugeHandlerInWrapper(t *testing.T) {
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)
 
-			defer res.Body.Close()
+			defer func() {
+				if err := res.Body.Close(); err != nil {
+					log.Printf("failed to lcose response body: %s", err)
+				}
+			}()
 			//			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
@@ -299,14 +304,14 @@ func TestGaugeHandlerInWrapper(t *testing.T) {
 
 func TestGeneralCaseHandler(t *testing.T) {
 	type want struct {
-		code        int
-		contentType string
+		code int
+		//		contentType string
 	}
 
 	type request struct {
-		method      string
-		url         string
-		contentType string
+		method string
+		url    string
+		//		contentType string
 	}
 
 	tests := []struct {
@@ -384,7 +389,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(test.request.method, test.request.url, nil)
-			request.Header.Set("Content-Type", test.request.contentType)
+			//			request.Header.Set("Content-Type", test.request.contentType)
 
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, request)
@@ -392,7 +397,11 @@ func TestGeneralCaseHandler(t *testing.T) {
 			res := w.Result()
 			assert.Equal(t, test.want.code, res.StatusCode)
 
-			defer res.Body.Close()
+			defer func() {
+				if err := res.Body.Close(); err != nil {
+					log.Printf("failed to lcose response body: %s", err)
+				}
+			}()
 			//			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
