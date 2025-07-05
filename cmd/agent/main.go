@@ -26,8 +26,8 @@ type Config struct {
 
 func init() {
 	cmd.PersistentFlags().StringVarP(&EndpointAddr, "address", "a", "localhost:8080", "Server endpoint address")
-	cmd.PersistentFlags().DurationVarP(&mt.PollInterval, "pollinterval", "p", 2*time.Second, "Metrics polling interval")
-	cmd.PersistentFlags().DurationVarP(&mt.ReportInterval, "reportinterval", "r", 10*time.Second, "Metrics reporting interval")
+	cmd.PersistentFlags().IntVarP(&mt.PollInterval, "pollinterval", "p", 2, "Metrics polling interval")
+	cmd.PersistentFlags().IntVarP(&mt.ReportInterval, "reportinterval", "r", 10, "Metrics reporting interval")
 }
 
 var EndpointAddr string
@@ -58,10 +58,10 @@ var cmd = &cobra.Command{
 			EndpointAddr = cfg.EndpointAddr
 		}
 		if cfg.PollInterval != 0 {
-			mt.PollInterval = time.Duration(cfg.PollInterval) * time.Second
+			mt.PollInterval = cfg.PollInterval
 		}
 		if cfg.ReportInterval != 0 {
-			mt.ReportInterval = time.Duration(cfg.PollInterval) * time.Second
+			mt.ReportInterval = cfg.PollInterval
 		}
 
 		if mt.PollInterval <= 0 || mt.ReportInterval <= 0 {
