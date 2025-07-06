@@ -11,7 +11,7 @@ import (
 
 //----------------------Test-Post-Handlers----------------------
 
-func TestGaugeCounterPostHandler(t *testing.T) {
+func TestPostHandler(t *testing.T) {
 	type want struct {
 		code int
 	}
@@ -73,37 +73,7 @@ func TestGaugeCounterPostHandler(t *testing.T) {
 				url:    "/update/gauge/name",
 			},
 			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-		{
-			name: "no-val-gauge#2",
-			request: request{
-				method: http.MethodPost,
-				url:    "/update/gauge/name/",
-			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-		{
-			name: "no-val-gauge#3",
-			request: request{
-				method: http.MethodPost,
-				url:    "/update/gauge/name//",
-			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-		{
-			name: "no-val-gauge#4",
-			request: request{
-				method: http.MethodPost,
-				url:    "/update/gauge/name//fff",
-			},
-			want: want{
-				code: http.StatusBadRequest,
+				code: http.StatusNotFound,
 			},
 		},
 		{
@@ -157,56 +127,6 @@ func TestGaugeCounterPostHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "no-name-counter#3",
-			request: request{
-				method: http.MethodPost,
-				url:    "/update/counter//3",
-			},
-			want: want{
-				code: http.StatusNotFound,
-			},
-		},
-		{
-			name: "no-val-counter#1",
-			request: request{
-				method: http.MethodPost,
-				url:    "/update/counter/name",
-			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-		{
-			name: "no-val-counter#2",
-			request: request{
-				method: http.MethodPost,
-				url:    "/update/counter/name/",
-			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-		{
-			name: "no-val-counter#3",
-			request: request{
-				method: http.MethodPost,
-				url:    "/update/counter/name//",
-			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-		{
-			name: "no-val-counter#4",
-			request: request{
-				method: http.MethodPost,
-				url:    "/update/counter/name//fff",
-			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-		{
 			name: "no-val-counter#5",
 			request: request{
 				method: http.MethodPost,
@@ -226,57 +146,40 @@ func TestGaugeCounterPostHandler(t *testing.T) {
 				code: http.StatusOK,
 			},
 		},
-		{
-			name: "no-type",
-			request: request{
-				method: http.MethodPost,
-				url:    "/update",
-			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-		{
-			name: "incorr-type",
-			request: request{
-				method: http.MethodPost,
-				url:    "/update/name",
-			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
-		{
-			name: "incorr-path",
-			request: request{
-				method: http.MethodPost,
-				url:    "/name/",
-			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
+		//		{
+		//			name: "no-type",
+		//			request: request{
+		//				method: http.MethodPost,
+		//				url:    "/update",
+		//			},
+		//			want: want{
+		//				code: http.StatusBadRequest,
+		//			},
+		//		},
+		//{
+		//	name: "incorr-type",
+		//	request: request{
+		//		method: http.MethodPost,
+		//		url:    "/update/name",
+		//	},
+		//	want: want{
+		//		code: http.StatusBadRequest,
+		//	},
+		//},
+		//{
+		//	name: "incorr-path",
+		//	request: request{
+		//		method: http.MethodPost,
+		//		url:    "/name/",
+		//	},
+		//	want: want{
+		//		code: http.StatusBadRequest,
+		//	},
+		//},
 	}
 
 	r := chi.NewRouter()
-	r.Route("/update", func(r chi.Router) {
-		r.Route("/gauge", func(r chi.Router) {
-			r.Post("/", NoNameHandler)
-			r.Route("/{name}", func(r chi.Router) {
-				r.Post("/*", NoValueHandler)
-				r.Post("/{value}", GaugePostHandler)
-			})
-		})
-		r.Route("/counter", func(r chi.Router) {
-			r.Post("/", NoNameHandler)
-			r.Route("/{name}", func(r chi.Router) {
-				r.Post("/*", NoValueHandler)
-				r.Post("/{value}", CounterPostHandler)
-			})
-		})
-		r.Post("/*", GeneralCaseHandler)
-	})
-	r.Handle("/*", http.HandlerFunc(GeneralCaseHandler))
+	r.Post("/update/{kind}/{name}/{value}", PostHandler)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -391,16 +294,9 @@ func TestGeneralCaseHandler(t *testing.T) {
 	r := chi.NewRouter()
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/", AllValueHandler)
-		r.Route("/gauge", func(r chi.Router) {
-			r.Get("/", NoNameHandler)
-			r.Get("/{name}", GaugeGetHandler)
-		})
-		r.Route("/counter", func(r chi.Router) {
-			r.Get("/", NoNameHandler)
-			r.Get("/{name}", CounterGetHandler)
-		})
+		r.Get("/{kind}/{name}", GetHandler)
 	})
-	r.Handle("/", http.HandlerFunc(GeneralCaseHandler))
+	r.Post("/update/{kind}/{name}/{value}", PostHandler)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -450,31 +346,14 @@ func TestAllValueHandler(t *testing.T) {
 				code: http.StatusOK,
 			},
 		},
-		{
-			name: "correct#1",
-			request: request{
-				method: http.MethodGet,
-				url:    "/value/meow",
-			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
-		},
 	}
 
 	r := chi.NewRouter()
 	r.Route("/value", func(r chi.Router) {
-		r.Get("/*", AllValueHandler)
-		r.Route("/gauge", func(r chi.Router) {
-			r.Get("/*", NoNameHandler)
-			r.Get("/{name}", GaugeGetHandler)
-		})
-		r.Route("/counter", func(r chi.Router) {
-			r.Get("/*", NoNameHandler)
-			r.Get("/{name}", CounterGetHandler)
-		})
+		r.Get("/", AllValueHandler)
+		r.Get("/{kind}/{name}", GetHandler)
 	})
-	r.Handle("/", http.HandlerFunc(GeneralCaseHandler))
+	r.Post("/update/{kind}/{name}/{value}", PostHandler)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

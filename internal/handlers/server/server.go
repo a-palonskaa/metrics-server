@@ -14,9 +14,15 @@ import (
 	st "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
-func GaugePostHandler(w http.ResponseWriter, req *http.Request) {
+func PostHandler(w http.ResponseWriter, req *http.Request) {
+	kind := chi.URLParam(req, "kind")
 	name := chi.URLParam(req, "name")
 	val := chi.URLParam(req, "value")
+
+	if kind != "gauge" && kind != "counter" {
+		http.Error(w, "", http.StatusBadRequest)
+		return
+	}
 
 	if name == "" {
 		http.Error(w, "", http.StatusNotFound)
@@ -28,53 +34,27 @@ func GaugePostHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	gaugeValue, err := strconv.ParseFloat(val, 64)
-	if err != nil {
-		http.Error(w, "Incorrect gauge value", http.StatusBadRequest)
-		return
+	switch kind {
+	case "gauge":
+		{
+			gaugeValue, err := strconv.ParseFloat(val, 64)
+			if err != nil {
+				http.Error(w, "Incorrect gauge value", http.StatusBadRequest)
+				return
+			}
+			st.MS.AddGauge(name, st.Gauge(gaugeValue))
+		}
+	case "counter":
+		{
+			counterValue, err := strconv.Atoi(val)
+			if err != nil {
+				http.Error(w, "Incorrect couner value", http.StatusBadRequest)
+				return
+			}
+			st.MS.AddCounter(name, st.Counter(counterValue))
+		}
 	}
-	st.MS.AddGauge(name, st.Gauge(gaugeValue))
 	w.WriteHeader(http.StatusOK)
-}
-
-func CounterPostHandler(w http.ResponseWriter, req *http.Request) {
-	name := chi.URLParam(req, "name")
-	val := chi.URLParam(req, "value")
-
-	if name == "" {
-		http.Error(w, "", http.StatusNotFound)
-		return
-	}
-
-	if val == "" {
-		http.Error(w, "", http.StatusBadRequest)
-		return
-	}
-
-	counterValue, err := strconv.Atoi(val)
-	if err != nil {
-		http.Error(w, "Incorrect couner value", http.StatusBadRequest)
-		return
-	}
-	st.MS.AddCounter(name, st.Counter(counterValue))
-	w.WriteHeader(http.StatusOK)
-}
-
-func GeneralCaseHandler(w http.ResponseWriter, req *http.Request) {
-	http.Error(w, "", http.StatusBadRequest)
-}
-
-func NoNameHandler(w http.ResponseWriter, req *http.Request) {
-	http.Error(w, "", http.StatusNotFound)
-}
-
-func NoValueHandler(w http.ResponseWriter, req *http.Request) {
-	name := chi.URLParam(req, "name")
-	if name == "" {
-		http.Error(w, "", http.StatusNotFound)
-		return
-	}
-	http.Error(w, "", http.StatusBadRequest)
 }
 
 func AllValueHandler(w http.ResponseWriter, req *http.Request) {
@@ -126,9 +106,21 @@ func AllValueHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func GaugeGetHandler(w http.ResponseWriter, req *http.Request) {
+func GetHandler(w http.ResponseWriter, req *http.Request) {
+	kind := chi.URLParam(req, "kind")
 	name := chi.URLParam(req, "name")
 
+	switch kind {
+	case "gauge":
+		GaugeGetHandler(w, req, name)
+	case "counter":
+		CounterGetHandler(w, req, name)
+	default:
+		http.Error(w, "", http.StatusBadRequest)
+	}
+}
+
+func GaugeGetHandler(w http.ResponseWriter, req *http.Request, name string) {
 	if !st.MS.IsGaugeAllowed(name) {
 		http.Error(w, "Incorrect gauge value", http.StatusNotFound)
 		return
@@ -143,9 +135,7 @@ func GaugeGetHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func CounterGetHandler(w http.ResponseWriter, req *http.Request) {
-	name := chi.URLParam(req, "name")
-
+func CounterGetHandler(w http.ResponseWriter, req *http.Request, name string) {
 	if !st.MS.IsCounterAllowed(name) {
 		http.Error(w, "Incorrect counter value", http.StatusNotFound)
 		return

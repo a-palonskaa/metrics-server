@@ -1,0 +1,14 @@
+{"level":"info","ts":1751802683.112971,"caller":"server/server.go:59","msg":"request uri /update/counter/testCounter/100 method POST"}
+{"level":"info","ts":1751802683.1132858,"caller":"server/server.go:65","msg":"response status 200 size 0"}
+{"level":"info","ts":1751802683.113624,"caller":"server/server.go:59","msg":"request uri /update/counter/ method POST"}
+{"level":"info","ts":1751802683.113643,"caller":"server/server.go:65","msg":"response status 404 size 1"}
+{"level":"info","ts":1751802683.113847,"caller":"server/server.go:59","msg":"request uri /update/counter/testCounter/none method POST"}
+{"level":"info","ts":1751802683.113861,"caller":"server/server.go:65","msg":"response status 400 size 23"}
+{"level":"info","ts":1751802683.1150131,"caller":"server/server.go:59","msg":"request uri /update/gauge/testGauge/100 method POST"}
+{"level":"info","ts":1751802683.115028,"caller":"server/server.go:65","msg":"response status 200 size 0"}
+{"level":"info","ts":1751802683.1151931,"caller":"server/server.go:59","msg":"request uri /update/gauge/ method POST"}
+{"level":"info","ts":1751802683.115212,"caller":"server/server.go:65","msg":"response status 404 size 1"}
+{"level":"info","ts":1751802683.115453,"caller":"server/server.go:59","msg":"request uri /update/gauge/testGauge/none method POST"}
+{"level":"info","ts":1751802683.115479,"caller":"server/server.go:65","msg":"response status 400 size 22"}
+{"level":"info","ts":1751802683.116231,"caller":"server/server.go:59","msg":"request uri /update/unknown/testCounter/100 method POST"}
+{"level":"info","ts":1751802683.116242,"caller":"server/server.go:65","msg":"response status 400 size 1"}

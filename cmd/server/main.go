@@ -1,15 +1,16 @@
 package main
 
 import (
-	"github.com/caarlos0/env/v6"
-	"github.com/fatih/color"
-	"github.com/go-chi/chi/v5"
-	"github.com/spf13/cobra"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/fatih/color"
+	"github.com/go-chi/chi/v5"
+	"github.com/spf13/cobra"
 
 	hs "github.com/a-palonskaa/metrics-server/internal/handlers/server"
 )
@@ -67,34 +68,9 @@ var cmd = &cobra.Command{
 
 		r.Route("/value", func(r chi.Router) {
 			r.Get("/", hs.AllValueHandler)
-			r.Route("/gauge", func(r chi.Router) {
-				r.Get("/", hs.NoNameHandler)
-				r.Get("/{name}", hs.GaugeGetHandler)
-			})
-			r.Route("/counter", func(r chi.Router) {
-				r.Get("/", hs.NoNameHandler)
-				r.Get("/{name}", hs.CounterGetHandler)
-			})
+			r.Get("/{kind}/{name}", hs.GetHandler)
 		})
-
-		r.Route("/update", func(r chi.Router) {
-			r.Route("/gauge", func(r chi.Router) {
-				r.Post("/", hs.NoNameHandler)
-				r.Route("/{name}", func(r chi.Router) {
-					r.Post("/*", hs.NoValueHandler)
-					r.Post("/{value}", hs.GaugePostHandler)
-				})
-			})
-			r.Route("/counter", func(r chi.Router) {
-				r.Post("/", hs.NoNameHandler)
-				r.Route("/{name}", func(r chi.Router) {
-					r.Post("/*", hs.NoValueHandler)
-					r.Post("/{value}", hs.CounterPostHandler)
-				})
-			})
-			r.Post("/*", hs.GeneralCaseHandler)
-		})
-		r.Handle("/", http.HandlerFunc(hs.GeneralCaseHandler))
+		r.Post("/update/{kind}/{name}/{value}", hs.PostHandler)
 
 		if err := http.ListenAndServe(EndpointAddr, r); err != nil {
 			log.Fatalf("error loading server: %s", err)
