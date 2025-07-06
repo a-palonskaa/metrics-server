@@ -1,4 +1,4 @@
-package metrics_storage
+package metricsstorage
 
 import (
 	"strconv"
