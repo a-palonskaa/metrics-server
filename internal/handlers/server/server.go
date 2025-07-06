@@ -138,7 +138,7 @@ func GaugeGetHandler(w http.ResponseWriter, req *http.Request) {
 
 	mt.Update(st.MS, &runtime.MemStats{})
 	val, _ := st.MS.GetGaugeValue(name)
-	if _, err := w.Write([]byte(strconv.FormatFloat(float64(val), 'f', -1, 64))); err != nil {
+	if _, err := w.Write([]byte(val.String())); err != nil {
 		log.Printf("error writing gauge value: %s", err)
 	}
 }
@@ -155,7 +155,7 @@ func CounterGetHandler(w http.ResponseWriter, req *http.Request) {
 
 	mt.Update(st.MS, &runtime.MemStats{})
 	val, _ := st.MS.GetCounterValue(name)
-	if _, err := w.Write([]byte(strconv.FormatInt(int64(val), 10))); err != nil {
+	if _, err := w.Write([]byte(val.String())); err != nil {
 		log.Printf("error writing counter value: %s", err)
 	}
 }

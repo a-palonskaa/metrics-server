@@ -1,7 +1,23 @@
 package memstorage
 
+import (
+	"strconv"
+)
+
+type Stringer interface {
+	String() string
+}
+
 type Gauge float64
 type Counter int64
+
+func (val Gauge) String() string {
+	return strconv.FormatFloat(float64(val), 'f', -1, 64)
+}
+
+func (val Counter) String() string {
+	return strconv.FormatInt(int64(val), 10)
+}
 
 type MetricsStorage struct {
 	GaugeMetrics   map[string]Gauge

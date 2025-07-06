@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/caarlos0/env/v6"
 	"github.com/fatih/color"
+	"github.com/go-resty/resty/v2"
 	"github.com/spf13/cobra"
 	"log"
 	"net"
-	"net/http"
 	"os"
 	"runtime"
 	"strconv"
@@ -92,7 +92,7 @@ var cmd = &cobra.Command{
 		mt.Update(st.MS, memStats)
 		go mt.UpdateRoutine(st.MS, memStats)
 
-		client := &http.Client{}
+		client := resty.New()
 		for {
 			for key, val := range st.MS.GaugeMetrics {
 				if err := ha.SendRequest(client, EndpointAddr, "gauge", key, val); err != nil {
