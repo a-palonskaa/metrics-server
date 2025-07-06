@@ -14,6 +14,7 @@ agent:
 
 deps:
 	go mod download
+	go mod vendor
 
 test:
 	go test ./... -v -coverprofile=coverage.out

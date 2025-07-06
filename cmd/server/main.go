@@ -94,7 +94,6 @@ var cmd = &cobra.Command{
 			})
 			r.Post("/*", hs.GeneralCaseHandler)
 		})
-
 		r.Handle("/", http.HandlerFunc(hs.GeneralCaseHandler))
 
 		if err := http.ListenAndServe(EndpointAddr, r); err != nil {

@@ -1,4 +1,4 @@
-package memstorage
+package metrics_storage
 
 import (
 	"strconv"

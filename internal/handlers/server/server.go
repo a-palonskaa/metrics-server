@@ -74,7 +74,7 @@ func NoValueHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "", http.StatusNotFound)
 		return
 	}
-	http.Error(w, "", http.StatusBadRequest) //DEBUG - NOVAL
+	http.Error(w, "", http.StatusBadRequest)
 }
 
 func AllValueHandler(w http.ResponseWriter, req *http.Request) {
