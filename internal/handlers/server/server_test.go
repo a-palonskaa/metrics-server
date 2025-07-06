@@ -146,36 +146,6 @@ func TestPostHandler(t *testing.T) {
 				code: http.StatusOK,
 			},
 		},
-		//		{
-		//			name: "no-type",
-		//			request: request{
-		//				method: http.MethodPost,
-		//				url:    "/update",
-		//			},
-		//			want: want{
-		//				code: http.StatusBadRequest,
-		//			},
-		//		},
-		//{
-		//	name: "incorr-type",
-		//	request: request{
-		//		method: http.MethodPost,
-		//		url:    "/update/name",
-		//	},
-		//	want: want{
-		//		code: http.StatusBadRequest,
-		//	},
-		//},
-		//{
-		//	name: "incorr-path",
-		//	request: request{
-		//		method: http.MethodPost,
-		//		url:    "/name/",
-		//	},
-		//	want: want{
-		//		code: http.StatusBadRequest,
-		//	},
-		//},
 	}
 
 	r := chi.NewRouter()
@@ -184,7 +154,6 @@ func TestPostHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(test.request.method, test.request.url, nil)
-			//			request.Header.Set("Content-Type", test.request.contentType)
 
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, request)
@@ -197,7 +166,6 @@ func TestPostHandler(t *testing.T) {
 					log.Printf("failed to lcose response body: %s", err)
 				}
 			}()
-			//			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
 }
@@ -205,13 +173,11 @@ func TestPostHandler(t *testing.T) {
 func TestGeneralCaseHandler(t *testing.T) {
 	type want struct {
 		code int
-		//		contentType string
 	}
 
 	type request struct {
 		method string
 		url    string
-		//		contentType string
 	}
 
 	tests := []struct {
@@ -301,7 +267,6 @@ func TestGeneralCaseHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(test.request.method, test.request.url, nil)
-			//			request.Header.Set("Content-Type", test.request.contentType)
 
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, request)
@@ -314,7 +279,6 @@ func TestGeneralCaseHandler(t *testing.T) {
 					log.Printf("failed to lcose response body: %s", err)
 				}
 			}()
-			//			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
 }
@@ -322,13 +286,11 @@ func TestGeneralCaseHandler(t *testing.T) {
 func TestAllValueHandler(t *testing.T) {
 	type want struct {
 		code int
-		//		contentType string
 	}
 
 	type request struct {
 		method string
 		url    string
-		//		contentType string
 	}
 
 	tests := []struct {
@@ -358,7 +320,6 @@ func TestAllValueHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(test.request.method, test.request.url, nil)
-			//			request.Header.Set("Content-Type", test.request.contentType)
 
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, request)
@@ -371,7 +332,6 @@ func TestAllValueHandler(t *testing.T) {
 					log.Printf("failed to lcose response body: %s", err)
 				}
 			}()
-			//			assert.Equal(t, test.want.contentType, res.Header.Get("Content-Type"))
 		})
 	}
 }
