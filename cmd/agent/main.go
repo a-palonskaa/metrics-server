@@ -2,16 +2,17 @@ package main
 
 import (
 	"fmt"
-	"github.com/caarlos0/env/v6"
-	"github.com/fatih/color"
-	"github.com/go-resty/resty/v2"
-	"github.com/spf13/cobra"
 	"log"
 	"net"
 	"os"
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/fatih/color"
+	"github.com/go-resty/resty/v2"
+	"github.com/spf13/cobra"
 
 	agent_handler "github.com/a-palonskaa/metrics-server/internal/handlers/agent"
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"

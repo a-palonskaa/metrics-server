@@ -1,15 +1,15 @@
 package server
 
 import (
-	//	"bytes"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"html/template"
 	"log"
 	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/go-chi/chi/v5"
 
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"

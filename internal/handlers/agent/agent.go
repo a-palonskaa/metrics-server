@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+
 	"github.com/go-resty/resty/v2"
 )
 
