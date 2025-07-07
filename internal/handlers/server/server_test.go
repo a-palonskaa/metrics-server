@@ -149,7 +149,11 @@ func TestPostHandler(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	r.Post("/update/{kind}/{name}/{value}", PostHandler)
+	r.Route("/value", func(r chi.Router) {
+		r.Get("/", AllValueHandler)
+		r.Get("/{mType}/{name}", GetHandler)
+	})
+	r.Post("/update/{mType}/{name}/{value}", PostHandler)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -260,9 +264,9 @@ func TestGeneralCaseHandler(t *testing.T) {
 	r := chi.NewRouter()
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/", AllValueHandler)
-		r.Get("/{kind}/{name}", GetHandler)
+		r.Get("/{mType}/{name}", GetHandler)
 	})
-	r.Post("/update/{kind}/{name}/{value}", PostHandler)
+	r.Post("/update/{mType}/{name}/{value}", PostHandler)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -313,9 +317,9 @@ func TestAllValueHandler(t *testing.T) {
 	r := chi.NewRouter()
 	r.Route("/value", func(r chi.Router) {
 		r.Get("/", AllValueHandler)
-		r.Get("/{kind}/{name}", GetHandler)
+		r.Get("/{mType}/{name}", GetHandler)
 	})
-	r.Post("/update/{kind}/{name}/{value}", PostHandler)
+	r.Post("/update/{mType}/{name}/{value}", PostHandler)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

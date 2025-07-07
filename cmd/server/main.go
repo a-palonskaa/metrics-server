@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/spf13/cobra"
 
-	hs "github.com/a-palonskaa/metrics-server/internal/handlers/server"
+	server_handler "github.com/a-palonskaa/metrics-server/internal/handlers/server"
 )
 
 type Config struct {
@@ -67,10 +67,10 @@ var cmd = &cobra.Command{
 		r := chi.NewRouter()
 
 		r.Route("/value", func(r chi.Router) {
-			r.Get("/", hs.AllValueHandler)
-			r.Get("/{kind}/{name}", hs.GetHandler)
+			r.Get("/", server_handler.AllValueHandler)
+			r.Get("/{mType}/{name}", server_handler.GetHandler)
 		})
-		r.Post("/update/{kind}/{name}/{value}", hs.PostHandler)
+		r.Post("/update/{mType}/{name}/{value}", server_handler.PostHandler)
 
 		if err := http.ListenAndServe(EndpointAddr, r); err != nil {
 			log.Fatalf("error loading server: %s", err)

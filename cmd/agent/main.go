@@ -13,9 +13,9 @@ import (
 	"strconv"
 	"time"
 
-	ha "github.com/a-palonskaa/metrics-server/internal/handlers/agent"
-	mt "github.com/a-palonskaa/metrics-server/internal/metrics"
-	st "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
+	agent_handler "github.com/a-palonskaa/metrics-server/internal/handlers/agent"
+	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
+	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
 type Config struct {
@@ -26,8 +26,8 @@ type Config struct {
 
 func init() {
 	cmd.PersistentFlags().StringVarP(&EndpointAddr, "address", "a", "localhost:8080", "Server endpoint address")
-	cmd.PersistentFlags().IntVarP(&mt.PollInterval, "pollinterval", "p", 2, "Metrics polling interval")
-	cmd.PersistentFlags().IntVarP(&mt.ReportInterval, "reportinterval", "r", 10, "Metrics reporting interval")
+	cmd.PersistentFlags().IntVarP(&metrics.PollInterval, "pollinterval", "p", 2, "Metrics polling interval")
+	cmd.PersistentFlags().IntVarP(&metrics.ReportInterval, "reportinterval", "r", 10, "Metrics reporting interval")
 }
 
 var EndpointAddr string
@@ -58,13 +58,13 @@ var cmd = &cobra.Command{
 			EndpointAddr = cfg.EndpointAddr
 		}
 		if cfg.PollInterval != 0 {
-			mt.PollInterval = cfg.PollInterval
+			metrics.PollInterval = cfg.PollInterval
 		}
 		if cfg.ReportInterval != 0 {
-			mt.ReportInterval = cfg.PollInterval
+			metrics.ReportInterval = cfg.PollInterval
 		}
 
-		if mt.PollInterval <= 0 || mt.ReportInterval <= 0 {
+		if metrics.PollInterval <= 0 || metrics.ReportInterval <= 0 {
 			log.Printf("Error: PollInterval & ReportInterval must be greater than 0\n")
 			os.Exit(1)
 		}
@@ -89,23 +89,23 @@ var cmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		memStats := &runtime.MemStats{}
 
-		mt.Update(st.MS, memStats)
-		go mt.UpdateRoutine(st.MS, memStats)
+		metrics.Update(memstorage.MS, memStats)
+		go metrics.UpdateRoutine(memstorage.MS, memStats)
 
 		client := resty.New()
 		for {
-			for key, val := range st.MS.GaugeMetrics {
-				if err := ha.SendRequest(client, EndpointAddr, "gauge", key, val); err != nil {
+			for key, val := range memstorage.MS.GaugeMetrics {
+				if err := agent_handler.SendRequest(client, EndpointAddr, "gauge", key, val); err != nil {
 					fmt.Printf("Agent: Error sending gauge metric %s: %v\n", key, err)
 				}
 			}
 
-			for key, val := range st.MS.CounterMetrics {
-				if err := ha.SendRequest(client, EndpointAddr, "counter", key, val); err != nil {
+			for key, val := range memstorage.MS.CounterMetrics {
+				if err := agent_handler.SendRequest(client, EndpointAddr, "counter", key, val); err != nil {
 					fmt.Printf("Agent: Error sending counter metric %s: %v\n", key, err)
 				}
 			}
-			time.Sleep(time.Duration(mt.ReportInterval) * 1e9)
+			time.Sleep(time.Duration(metrics.ReportInterval) * 1e9)
 		}
 	},
 }

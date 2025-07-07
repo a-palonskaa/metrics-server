@@ -4,12 +4,11 @@ import (
 	"strconv"
 )
 
-type Stringer interface {
-	String() string
-}
-
 type Gauge float64
 type Counter int64
+
+const GaugeName = "gauge"
+const CounterName = "counter"
 
 func (val Gauge) String() string {
 	return strconv.FormatFloat(float64(val), 'f', -1, 64)
@@ -83,4 +82,8 @@ func (m *MetricsStorage) GetCounterValue(name string) (Counter, bool) {
 		return m.CounterMetrics[name], true
 	}
 	return 0, false
+}
+
+func IsTypeAllowed(mType string) bool {
+	return mType == GaugeName || mType == CounterName
 }

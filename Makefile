@@ -24,4 +24,7 @@ test:
 lint:
 	golangci-lint run
 
+clean:
+	rm -f ./cmd/agent/agent ./cmd/server/server coverage.out
+
 
