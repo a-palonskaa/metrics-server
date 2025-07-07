@@ -1,16 +1,19 @@
 package server
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"runtime"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 
+	agent "github.com/a-palonskaa/metrics-server/internal/handlers/agent" // ХУЙНЯ
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
@@ -100,13 +103,110 @@ func PostHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func AllValueHandler(w http.ResponseWriter, req *http.Request) {
-	segments := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
-	if len(segments) > 1 {
-		http.Error(w, "Bad request", http.StatusBadRequest)
+func AllValueUpdateHandler(w http.ResponseWriter, req *http.Request) {
+	contentType := req.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		log.Error().Msg("JSON format is required")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	if req.ContentLength == 0 {
+		log.Error().Msg("Empty body")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var metric agent.Metrics
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.Error().Err(err).Msg("Error Reading body")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err = json.Unmarshal(body, &metric); err != nil {
+		log.Error().Err(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	switch metric.MType {
+	case "gauge":
+		memstorage.MS.AddGauge(metric.ID, memstorage.Gauge(*metric.Value))
+	case "counter":
+		memstorage.MS.AddCounter(metric.ID, memstorage.Counter(*metric.Delta))
+	default:
+		log.Error().Msgf("unknown type: %s", metric.MType)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(metric)
+}
+
+func AnyValueHandler(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if req.ContentLength == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	metrics.Update(memstorage.MS, &runtime.MemStats{})
+
+	var metric agent.Metrics
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(req.Body)
+	if err != nil {
+		log.Error().Err(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
+		log.Error().Err(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	switch metric.MType {
+	case "gauge":
+		if memstorage.MS.IsGaugeAllowed(metric.ID) {
+			gVal := float64(memstorage.MS.GaugeMetrics[metric.ID])
+			metric.Value = &gVal
+		} else {
+			log.Error().Msgf("gauge name is not allowed: %s", metric.ID)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	case "counter":
+		if memstorage.MS.IsCounterAllowed(metric.ID) {
+			cVal := int64(memstorage.MS.CounterMetrics[metric.ID])
+			metric.Delta = &cVal
+		} else {
+			log.Error().Msgf("counter name is not allowed: %s", metric.ID)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	default:
+		log.Error().Msgf("unknown type: %s", metric.MType)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	resp, err := json.Marshal(metric)
+	if err != nil {
+		log.Error().Err(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(resp)
+}
+
+func AllValueHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 

@@ -41,6 +41,7 @@ func Update(metrics *memstorage.MetricsStorage, memStats *runtime.MemStats) {
 	metrics.GaugeMetrics["StackSys"] = memstorage.Gauge(memStats.StackSys)
 	metrics.GaugeMetrics["Sys"] = memstorage.Gauge(memStats.Sys)
 	metrics.GaugeMetrics["TotalAlloc"] = memstorage.Gauge(memStats.TotalAlloc)
+	metrics.GaugeMetrics["HeapSys"] = memstorage.Gauge(memStats.HeapSys)
 	metrics.GaugeMetrics["RandomValue"] = memstorage.Gauge(rand.Float64())
 
 	// counter metrics

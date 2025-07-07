@@ -87,17 +87,33 @@ var cmd = &cobra.Command{
 		metrics.Update(memstorage.MS, memStats)
 		go metrics.UpdateRoutine(memstorage.MS, memStats)
 
+		backoffSchedule := []time.Duration{
+			100 * time.Millisecond,
+			500 * time.Millisecond,
+			1 * time.Second,
+		}
+
 		client := resty.New()
 		for {
 			for key, val := range memstorage.MS.GaugeMetrics {
-				if err := agent_handler.SendRequest(client, EndpointAddr, "gauge", key, val); err != nil {
+				for _, backoff := range backoffSchedule {
+					err := agent_handler.SendRequest(client, EndpointAddr, "gauge", key, val)
+					if err == nil {
+						break
+					}
 					log.Error().Msgf("Agent: Error sending gauge metric %s: %v\n", key, err)
+					time.Sleep(backoff)
 				}
 			}
 
 			for key, val := range memstorage.MS.CounterMetrics {
-				if err := agent_handler.SendRequest(client, EndpointAddr, "counter", key, val); err != nil {
+				for _, backoff := range backoffSchedule {
+					err := agent_handler.SendRequest(client, EndpointAddr, "counter", key, val)
+					if err == nil {
+						break
+					}
 					log.Error().Msgf("Agent: Error sending counter metric %s: %v\n", key, err)
+					time.Sleep(backoff)
 				}
 			}
 			time.Sleep(time.Duration(metrics.ReportInterval) * 1e9)
