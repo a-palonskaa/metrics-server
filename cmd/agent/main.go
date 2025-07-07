@@ -1,19 +1,19 @@
 package main
 
 import (
-	"fmt"
-	"github.com/caarlos0/env/v6"
-	"github.com/fatih/color"
-	"github.com/go-resty/resty/v2"
-	"github.com/spf13/cobra"
-	"log"
 	"net"
-	"os"
 	"runtime"
 	"strconv"
 	"time"
 
+	"github.com/caarlos0/env/v6"
+	"github.com/fatih/color"
+	"github.com/go-resty/resty/v2"
+	"github.com/rs/zerolog/log"
+	"github.com/spf13/cobra"
+
 	agent_handler "github.com/a-palonskaa/metrics-server/internal/handlers/agent"
+	logger "github.com/a-palonskaa/metrics-server/internal/logger"
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
@@ -50,8 +50,7 @@ var cmd = &cobra.Command{
 		var cfg Config
 		err := env.Parse(&cfg)
 		if err != nil {
-			fmt.Printf("environment variables parsing error\n")
-			os.Exit(1)
+			log.Fatal().Msgf("environment variables parsing error")
 		}
 
 		if cfg.EndpointAddr != "" {
@@ -65,25 +64,21 @@ var cmd = &cobra.Command{
 		}
 
 		if metrics.PollInterval <= 0 || metrics.ReportInterval <= 0 {
-			log.Printf("Error: PollInterval & ReportInterval must be greater than 0\n")
-			os.Exit(1)
+			log.Fatal().Msgf("Error: PollInterval & ReportInterval must be greater than 0")
 		}
 
 		_, portStr, err := net.SplitHostPort(EndpointAddr)
 		if err != nil {
-			log.Printf("invalid address format: %s", err)
-			os.Exit(1)
+			log.Fatal().Msgf("invalid address format: %s", err)
 		}
 
 		port, err := strconv.Atoi(portStr)
 		if err != nil {
-			log.Printf("port must be a number: %s", err)
-			os.Exit(1)
+			log.Fatal().Msgf("port must be a number: %s", err)
 		}
 
 		if port < 1 || port > 65535 {
-			log.Printf("port must be between 1 and 65535")
-			os.Exit(1)
+			log.Fatal().Msgf("port must be between 1 and 65535")
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -96,13 +91,13 @@ var cmd = &cobra.Command{
 		for {
 			for key, val := range memstorage.MS.GaugeMetrics {
 				if err := agent_handler.SendRequest(client, EndpointAddr, "gauge", key, val); err != nil {
-					fmt.Printf("Agent: Error sending gauge metric %s: %v\n", key, err)
+					log.Error().Msgf("Agent: Error sending gauge metric %s: %v\n", key, err)
 				}
 			}
 
 			for key, val := range memstorage.MS.CounterMetrics {
 				if err := agent_handler.SendRequest(client, EndpointAddr, "counter", key, val); err != nil {
-					fmt.Printf("Agent: Error sending counter metric %s: %v\n", key, err)
+					log.Error().Msgf("Agent: Error sending counter metric %s: %v\n", key, err)
 				}
 			}
 			time.Sleep(time.Duration(metrics.ReportInterval) * 1e9)
@@ -111,8 +106,9 @@ var cmd = &cobra.Command{
 }
 
 func main() {
+	logger.InitLogger("info.log")
+
 	if err := cmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal().Err(err)
 	}
 }
