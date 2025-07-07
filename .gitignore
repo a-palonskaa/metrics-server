@@ -30,3 +30,6 @@ go.work.sum
 # IDEs directories
 .idea
 .vscode
+
+info.log
+new/
