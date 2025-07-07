@@ -172,6 +172,6 @@ func GetHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
 	if _, err := w.Write([]byte(val.String())); err != nil {
-		log.Printf("error writing value: %s", err)
+		log.Error().Msgf("error writing value: %s", err)
 	}
 }
