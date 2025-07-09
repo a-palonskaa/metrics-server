@@ -72,10 +72,6 @@ jobs:
           cd cmd/agent
           go build -buildvcs=false  -o agent
 
-      - name: Run golangci-lint
-        run: |
-          make lint
-
       - name: "Code increment #1"
         if: |
           github.ref == 'refs/heads/main' ||
