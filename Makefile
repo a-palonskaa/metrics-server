@@ -31,6 +31,7 @@ test:
 	rm -rf coverage.out
 
 lint:
+	go mod download
 	golangci-lint run
 
 clean:
