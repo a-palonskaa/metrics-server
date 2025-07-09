@@ -73,7 +73,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
-          args: --build-tags=integration --skip-dirs=vendor --timeout=5m
+          args: --build-tags=integration --timeout=5m
         env:
           GOFLAGS: "-buildvcs=false"
 
