@@ -176,6 +176,14 @@ func AllValueHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func RootGetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+}
+
 //----------------------minor-funcs----------------------
 
 func validateParametrs(mType string, name string, val string) (string, int) {
