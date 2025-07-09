@@ -93,8 +93,10 @@ func TestMemStorage_AddGauge(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ms := &MetricsStorage{
-				GaugeMetrics:   tt.fields.Gauge,
-				CounterMetrics: tt.fields.Counter,
+				GaugeMetrics:        tt.fields.Gauge,
+				CounterMetrics:      tt.fields.Counter,
+				AllowedGaugeNames:   make(map[string]bool),
+				AllowedCounterNames: make(map[string]bool),
 			}
 			ms.AddGauge(tt.args.name, tt.args.val)
 		})
@@ -185,8 +187,10 @@ func TestMemStorage_AddCounter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ms := &MetricsStorage{
-				GaugeMetrics:   tt.fields.Gauge,
-				CounterMetrics: tt.fields.Counter,
+				GaugeMetrics:        tt.fields.Gauge,
+				CounterMetrics:      tt.fields.Counter,
+				AllowedGaugeNames:   make(map[string]bool),
+				AllowedCounterNames: make(map[string]bool),
 			}
 			ms.AddCounter(tt.args.name, tt.args.val)
 		})

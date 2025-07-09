@@ -33,8 +33,8 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode
 }
 
-func WithLogging(fn func(w http.ResponseWriter, req *http.Request)) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
+func WithLogging(fn http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		responseData := &responseData{
 			status: 0,
 			size:   0,
@@ -45,9 +45,9 @@ func WithLogging(fn func(w http.ResponseWriter, req *http.Request)) http.Handler
 			responseData:   responseData,
 		}
 
-		fn(&responseWriter, req)
+		fn.ServeHTTP(&responseWriter, req)
 
 		log.Info().Str("uri", req.RequestURI).Str("method", req.Method).Msg("request")
 		log.Info().Int("status", responseData.status).Int("size", responseData.size).Msg("response")
-	}
+	})
 }
