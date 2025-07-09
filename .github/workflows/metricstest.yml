@@ -67,6 +67,11 @@ jobs:
           cd ./cmd/server
           go build -buildvcs=false -o server
 
+      - name: Build agent binary
+        run: |
+          cd cmd/agent
+          go build -buildvcs=false  -o agent
+
       - name: Run golangci-lint
         run: |
           make lint
@@ -101,11 +106,6 @@ jobs:
         run: |
           metricstest -test.v -test.run=^TestIteration1$ \
             -binary-path=cmd/server/server
-
-      - name: Build agent binary
-        run: |
-          cd cmd/agent
-          go build -buildvcs=false  -o agent
 
       - name: "Code increment #2"
         if: |
