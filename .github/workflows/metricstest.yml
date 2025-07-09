@@ -73,8 +73,9 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
+          args: --build-tags=integration --skip-dirs-use-default --skip-dirs=vendor --timeout=5m
         env:
-          GOGCFLAGS: "-buildvcs=false"
+          GOFLAGS: "-buildvcs=false"
 
       - name: "Code increment #1"
         if: |
