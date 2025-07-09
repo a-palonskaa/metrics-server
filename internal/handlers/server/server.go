@@ -17,53 +17,6 @@ import (
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
-// ----------------------logger-logic----------------------
-type ResponseWriter interface {
-	Header() http.Header
-	Write([]byte) (int, error)
-	WriteHeader(statusCode int)
-}
-
-type responseData struct {
-	status int
-	size   int
-}
-
-type loggingResponseWriter struct {
-	http.ResponseWriter
-	responseData *responseData
-}
-
-func (r *loggingResponseWriter) Write(b []byte) (int, error) {
-	size, err := r.ResponseWriter.Write(b)
-	r.responseData.size = size
-	return size, err
-}
-
-func (r *loggingResponseWriter) WriteHeader(statusCode int) {
-	r.ResponseWriter.WriteHeader(statusCode)
-	r.responseData.status = statusCode
-}
-
-func WithLogging(fn func(w http.ResponseWriter, req *http.Request)) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		responseData := &responseData{
-			status: 0,
-			size:   0,
-		}
-
-		responseWriter := loggingResponseWriter{
-			ResponseWriter: w,
-			responseData:   responseData,
-		}
-
-		fn(&responseWriter, req)
-
-		log.Info().Str("uri", req.RequestURI).Str("method", req.Method).Msg("request")
-		log.Info().Int("status", responseData.status).Int("size", responseData.size).Msg("response")
-	}
-}
-
 //----------------------pots-request-handlers----------------------
 
 func PostHandler(w http.ResponseWriter, req *http.Request) {
@@ -90,8 +43,6 @@ func PostJSONValueHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	memstorage.MS.Update(&runtime.MemStats{})
-
 	var metric metrics.Metrics
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(req.Body)
@@ -107,28 +58,10 @@ func PostJSONValueHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	switch metric.MType {
-	case "gauge":
-		if memstorage.MS.IsGaugeAllowed(metric.ID) {
-			gVal := float64(memstorage.MS.GaugeMetrics[metric.ID])
-			metric.Value = &gVal
-		} else {
-			log.Error().Msgf("gauge name is not allowed: %s", metric.ID)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-	case "counter":
-		if memstorage.MS.IsCounterAllowed(metric.ID) {
-			cVal := int64(memstorage.MS.CounterMetrics[metric.ID])
-			metric.Delta = &cVal
-		} else {
-			log.Error().Msgf("counter name is not allowed: %s", metric.ID)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-	default:
-		log.Error().Msgf("unknown type: %s", metric.MType)
-		w.WriteHeader(http.StatusBadRequest)
+	memstorage.MS.Update(&runtime.MemStats{})
+	if message, status := getMetricValue(&metric); status != http.StatusOK {
+		log.Error().Msgf(message)
+		w.WriteHeader(status)
 		return
 	}
 
@@ -175,12 +108,7 @@ func PostJSONUpdateHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	switch metric.MType {
-	case "gauge":
-		memstorage.MS.AddGauge(metric.ID, metrics.Gauge(*metric.Value))
-	case "counter":
-		memstorage.MS.AddCounter(metric.ID, metrics.Counter(*metric.Delta))
-	default:
+	if ok := addMetricToStorage(&metric); !ok {
 		log.Error().Msgf("unknown type: %s", metric.MType)
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -251,6 +179,21 @@ func AllValueHandler(w http.ResponseWriter, req *http.Request) {
 
 //----------------------minor-funcs----------------------
 
+func validateParametrs(mType string, name string, val string) (string, int) {
+	if !memstorage.IsTypeAllowed(mType) {
+		return "not allowed type", http.StatusBadRequest
+	}
+
+	if name == "" {
+		return "empty name", http.StatusNotFound
+	}
+
+	if val == "" {
+		return "empty val", http.StatusBadRequest
+	}
+	return "", http.StatusOK
+}
+
 func addValueToStorage(mType string, name string, val string) (string, int) {
 	switch mType {
 	case metrics.GaugeName:
@@ -267,6 +210,18 @@ func addValueToStorage(mType string, name string, val string) (string, int) {
 		memstorage.MS.AddCounter(name, metrics.Counter(counterValue))
 	}
 	return "", http.StatusOK
+}
+
+func addMetricToStorage(metric *metrics.Metrics) bool {
+	switch metric.MType {
+	case "gauge":
+		memstorage.MS.AddGauge(metric.ID, metrics.Gauge(*metric.Value))
+	case "counter":
+		memstorage.MS.AddCounter(metric.ID, metrics.Counter(*metric.Delta))
+	default:
+		return false
+	}
+	return true
 }
 
 func updateValueInStorage(val *fmt.Stringer, mType string, name string) (string, int) {
@@ -290,17 +245,24 @@ func updateValueInStorage(val *fmt.Stringer, mType string, name string) (string,
 	return "", http.StatusOK
 }
 
-func validateParametrs(mType string, name string, val string) (string, int) {
-	if !memstorage.IsTypeAllowed(mType) {
-		return "not allowed type", http.StatusBadRequest
-	}
-
-	if name == "" {
-		return "empty name", http.StatusNotFound
-	}
-
-	if val == "" {
-		return "empty val", http.StatusBadRequest
+func getMetricValue(metric *metrics.Metrics) (string, int) {
+	switch metric.MType {
+	case "gauge":
+		val, ok := memstorage.MS.GetGaugeValue(metric.ID)
+		if !ok {
+			return "gauge name is not allowed:" + metric.ID, http.StatusNotFound
+		}
+		gVal := float64(val)
+		metric.Value = &gVal
+	case "counter":
+		val, ok := memstorage.MS.GetCounterValue(metric.ID)
+		if !ok {
+			return "counter name is not allowed:" + metric.ID, http.StatusNotFound
+		}
+		cVal := int64(val)
+		metric.Delta = &cVal
+	default:
+		return "unknown type:" + metric.MType, http.StatusBadRequest
 	}
 	return "", http.StatusOK
 }

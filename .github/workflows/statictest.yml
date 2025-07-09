@@ -9,22 +9,16 @@ on:
 jobs:
   statictest:
     runs-on: ubuntu-latest
-    container: golang:1.22
+    container: golang:1.24.4
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Download statictest binary
-        uses: robinraju/release-downloader@v1.8
-        with:
-          repository: mipt-golang-course/go-autotests
-          latest: true
-          fileName: statictest
-          out-file-path: .tools
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Setup autotest binary
         run: |
+          git clone https://github.com/mipt-golang-course/go-autotests.git
+          cd go-autotests
+          go build -o $GITHUB_WORKSPACE/.tools/statictest ./cmd/statictest
           chmod -R +x $GITHUB_WORKSPACE/.tools/statictest
           mv $GITHUB_WORKSPACE/.tools/statictest /usr/local/bin/statictest
 
