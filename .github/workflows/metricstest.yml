@@ -64,11 +64,11 @@ jobs:
 
       - name: Build server binary
         run: |
-          cd cmd/server
-          go build -buildvcs=false -o server
+          make server
 
       - name: Run golangci-lint
-        run: golangci-lint run ./...
+        run: |
+          make lint
 
       - name: "Code increment #1"
         if: |
