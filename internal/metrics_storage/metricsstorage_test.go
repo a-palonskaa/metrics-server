@@ -2,18 +2,20 @@ package metricsstorage
 
 import (
 	"testing"
+
+	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
 )
 
 //----------------------Test-MemStorage-Methods----------------------
 
 func TestMemStorage_AddGauge(t *testing.T) {
 	type fields struct {
-		Gauge   map[string]Gauge
-		Counter map[string]Counter
+		Gauge   map[string]metrics.Gauge
+		Counter map[string]metrics.Counter
 	}
 	type args struct {
 		name string
-		val  Gauge
+		val  metrics.Gauge
 	}
 
 	tests := []struct {
@@ -24,8 +26,8 @@ func TestMemStorage_AddGauge(t *testing.T) {
 		{
 			name: "empty-memStorage",
 			fields: fields{
-				Gauge:   map[string]Gauge{},
-				Counter: map[string]Counter{},
+				Gauge:   map[string]metrics.Gauge{},
+				Counter: map[string]metrics.Counter{},
 			},
 			args: args{
 				name: "name",
@@ -35,8 +37,8 @@ func TestMemStorage_AddGauge(t *testing.T) {
 		{
 			name: "empty-name-to-empy-memStorage",
 			fields: fields{
-				Gauge:   map[string]Gauge{},
-				Counter: map[string]Counter{},
+				Gauge:   map[string]metrics.Gauge{},
+				Counter: map[string]metrics.Counter{},
 			},
 			args: args{
 				name: "",
@@ -46,8 +48,8 @@ func TestMemStorage_AddGauge(t *testing.T) {
 		{
 			name: "existed-name-to-memStorage-empty-counter",
 			fields: fields{
-				Gauge:   map[string]Gauge{"name": 12.0977},
-				Counter: map[string]Counter{},
+				Gauge:   map[string]metrics.Gauge{"name": 12.0977},
+				Counter: map[string]metrics.Counter{},
 			},
 			args: args{
 				name: "name",
@@ -57,8 +59,8 @@ func TestMemStorage_AddGauge(t *testing.T) {
 		{
 			name: "existed-name-to-memStorage",
 			fields: fields{
-				Gauge:   map[string]Gauge{"name": 12.09},
-				Counter: map[string]Counter{"counter": 1},
+				Gauge:   map[string]metrics.Gauge{"name": 12.09},
+				Counter: map[string]metrics.Counter{"counter": 1},
 			},
 			args: args{
 				name: "name",
@@ -68,8 +70,8 @@ func TestMemStorage_AddGauge(t *testing.T) {
 		{
 			name: "non-existed-name-to-non-empty-memStorage-empty-counter",
 			fields: fields{
-				Gauge:   map[string]Gauge{"noname": 12.123},
-				Counter: map[string]Counter{},
+				Gauge:   map[string]metrics.Gauge{"noname": 12.123},
+				Counter: map[string]metrics.Counter{},
 			},
 			args: args{
 				name: "name",
@@ -79,8 +81,8 @@ func TestMemStorage_AddGauge(t *testing.T) {
 		{
 			name: "non-existed-name-to-non-empty-memStorage",
 			fields: fields{
-				Gauge:   map[string]Gauge{"noname": 12.123},
-				Counter: map[string]Counter{"counter": 1},
+				Gauge:   map[string]metrics.Gauge{"noname": 12.123},
+				Counter: map[string]metrics.Counter{"counter": 1},
 			},
 			args: args{
 				name: "name",
@@ -101,12 +103,12 @@ func TestMemStorage_AddGauge(t *testing.T) {
 
 func TestMemStorage_AddCounter(t *testing.T) {
 	type fields struct {
-		Gauge   map[string]Gauge
-		Counter map[string]Counter
+		Gauge   map[string]metrics.Gauge
+		Counter map[string]metrics.Counter
 	}
 	type args struct {
 		name string
-		val  Counter
+		val  metrics.Counter
 	}
 	tests := []struct {
 		name   string
@@ -116,8 +118,8 @@ func TestMemStorage_AddCounter(t *testing.T) {
 		{
 			name: "empty-memStorage",
 			fields: fields{
-				Gauge:   map[string]Gauge{},
-				Counter: map[string]Counter{},
+				Gauge:   map[string]metrics.Gauge{},
+				Counter: map[string]metrics.Counter{},
 			},
 			args: args{
 				name: "counter",
@@ -127,8 +129,8 @@ func TestMemStorage_AddCounter(t *testing.T) {
 		{
 			name: "empty-name-to-empy-memStorage",
 			fields: fields{
-				Gauge:   map[string]Gauge{},
-				Counter: map[string]Counter{},
+				Gauge:   map[string]metrics.Gauge{},
+				Counter: map[string]metrics.Counter{},
 			},
 			args: args{
 				name: "",
@@ -138,8 +140,8 @@ func TestMemStorage_AddCounter(t *testing.T) {
 		{
 			name: "existed-name-to-memStorage-empty-counter",
 			fields: fields{
-				Gauge:   map[string]Gauge{},
-				Counter: map[string]Counter{"counter": 12},
+				Gauge:   map[string]metrics.Gauge{},
+				Counter: map[string]metrics.Counter{"counter": 12},
 			},
 			args: args{
 				name: "counter",
@@ -149,8 +151,8 @@ func TestMemStorage_AddCounter(t *testing.T) {
 		{
 			name: "existed-name-to-memStorage",
 			fields: fields{
-				Gauge:   map[string]Gauge{"name": 12},
-				Counter: map[string]Counter{"counter": 1},
+				Gauge:   map[string]metrics.Gauge{"name": 12},
+				Counter: map[string]metrics.Counter{"counter": 1},
 			},
 			args: args{
 				name: "counter",
@@ -160,8 +162,8 @@ func TestMemStorage_AddCounter(t *testing.T) {
 		{
 			name: "non-existed-name-to-non-empty-memStorage-empty-counter",
 			fields: fields{
-				Gauge:   map[string]Gauge{},
-				Counter: map[string]Counter{"nocounter": 12},
+				Gauge:   map[string]metrics.Gauge{},
+				Counter: map[string]metrics.Counter{"nocounter": 12},
 			},
 			args: args{
 				name: "counter",
@@ -171,8 +173,8 @@ func TestMemStorage_AddCounter(t *testing.T) {
 		{
 			name: "non-existed-name-to-non-empty-memStorage",
 			fields: fields{
-				Gauge:   map[string]Gauge{"noname": 12},
-				Counter: map[string]Counter{"counter": 1},
+				Gauge:   map[string]metrics.Gauge{"noname": 12},
+				Counter: map[string]metrics.Counter{"counter": 1},
 			},
 			args: args{
 				name: "counter",
