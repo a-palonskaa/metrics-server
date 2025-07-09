@@ -6,29 +6,22 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/rs/zerolog/log"
 
-	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
+	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
 )
 
-type Metrics struct {
-	ID    string   `json:"id"`
-	MType string   `json:"type"`
-	Delta *int64   `json:"delta,omitempty"`
-	Value *float64 `json:"value,omitempty"`
-}
-
 func SendRequest(client *resty.Client, endpoint string, mType string, name string, val fmt.Stringer) error {
-	body := Metrics{
+	body := metrics.Metrics{
 		ID:    name,
 		MType: mType,
 	}
 
 	switch mType {
 	case "gauge":
-		gVal, _ := val.(memstorage.Gauge)
+		gVal, _ := val.(metrics.Gauge)
 		fVal := float64(gVal)
 		body.Value = &fVal
 	case "counter":
-		cVal, _ := val.(memstorage.Counter)
+		cVal, _ := val.(metrics.Counter)
 		iVal := int64(cVal)
 		body.Delta = &iVal
 	default:
