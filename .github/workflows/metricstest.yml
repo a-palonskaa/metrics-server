@@ -73,6 +73,8 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
+        env:
+          GOGCFLAGS: "-buildvcs=false"
 
       - name: "Code increment #1"
         if: |
