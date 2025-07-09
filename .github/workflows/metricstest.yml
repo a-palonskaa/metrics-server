@@ -64,7 +64,8 @@ jobs:
 
       - name: Build server binary
         run: |
-          make server
+          cd ./cmd/server
+          go build -buildvcs=false -o server
 
       - name: Run golangci-lint
         run: |

@@ -20,7 +20,7 @@ server:
 
 agent:
 	go build $(GOFLAGS) $(LDFLAGS) -o $(AGENT_EXECUTE) $(AGENT_SOURCES)
-  
+
 deps:
 	go mod download
 	go mod vendor
