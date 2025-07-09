@@ -1,6 +1,7 @@
 package metricsstorage
 
 import (
+	"fmt"
 	"math/rand"
 	"runtime"
 	"time"
@@ -157,5 +158,15 @@ func (m *MetricsStorage) UpdateRoutine(memStats *runtime.MemStats, interval time
 	for {
 		time.Sleep(interval)
 		m.Update(memStats)
+	}
+}
+
+func (m *MetricsStorage) Iterate(f func(string, string, fmt.Stringer)) {
+	for key, value := range m.GaugeMetrics {
+		f(key, t.GaugeName, value)
+	}
+
+	for key, value := range m.CounterMetrics {
+		f(key, t.CounterName, value)
 	}
 }
