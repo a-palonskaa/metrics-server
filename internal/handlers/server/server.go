@@ -144,7 +144,6 @@ func AllValueHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	memstorage.MS.Update(&runtime.MemStats{})
-
 	const tpl = `
 	<html>
 	<body>
