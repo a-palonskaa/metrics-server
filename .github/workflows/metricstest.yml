@@ -42,9 +42,6 @@ jobs:
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.57.2
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-      - name: Run golangci-lint
-        run: golangci-lint run ./...
-
       - name: Download autotests binaries
         uses: robinraju/release-downloader@v1.8
         with:
@@ -69,6 +66,9 @@ jobs:
         run: |
           cd cmd/server
           go build -buildvcs=false -o server
+
+      - name: Run golangci-lint
+        run: golangci-lint run ./...
 
       - name: "Code increment #1"
         if: |
