@@ -10,10 +10,14 @@ import (
 	"github.com/spf13/cobra"
 
 	server_handler "github.com/a-palonskaa/metrics-server/internal/handlers/server"
+	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
 func init() {
-	cmd.PersistentFlags().StringVarP(&Flags.EndpointAddr, "address", "a", "localhost:8080", "endpoint HTTP-server adress")
+	cmd.PersistentFlags().StringVarP(&Flags.EndpointAddr, "a", "a", "localhost:8080", "endpoint HTTP-server adress")
+	cmd.PersistentFlags().IntVarP(&Flags.StoreInterval, "i", "i", 300, "Saving server data interval")
+	cmd.PersistentFlags().BoolVarP(&Flags.Restore, "r", "r", true, "Saving or not data saved before")
+	cmd.PersistentFlags().StringVarP(&Flags.FileStoragePath, "f", "f", "server-data.txt", "Filepath")
 }
 
 var cmd = &cobra.Command{
@@ -36,17 +40,38 @@ var cmd = &cobra.Command{
 			log.Fatal().Msgf("environment variables parsing error\n")
 		}
 
-		if cfg.EndpointAddr != "" {
-			Flags.EndpointAddr = cfg.EndpointAddr
-		}
-
+		setFlags(&cfg)
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		c, err := memstorage.NewConsumer(Flags.FileStoragePath)
+		if err != nil {
+			log.Fatal().Err(err)
+		}
+
+		if Flags.Restore {
+			if err := c.ReadEvent(); err != nil {
+				log.Fatal().Err(err)
+			}
+		}
+		if err := c.Close(); err != nil {
+			log.Error().Err(err)
+		}
+
+		p, err := memstorage.NewProducer(Flags.FileStoragePath)
+		if err != nil {
+			log.Fatal().Err(err)
+		}
+
 		r := chi.NewRouter()
 
 		r.Use(server_handler.WithCompression)
 		r.Use(server_handler.WithLogging)
+		if Flags.StoreInterval == 0 {
+			r.Use(server_handler.MakeSavingHandler(p))
+		} else {
+			p.RunSavingRoutine(Flags.StoreInterval)
+		}
 
 		r.Route("/", func(r chi.Router) {
 			r.Get("/", server_handler.RootGetHandler)
