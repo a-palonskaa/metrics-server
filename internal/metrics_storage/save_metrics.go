@@ -9,6 +9,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+//--------------------producer--------------------
+
 type Producer struct {
 	ostream *os.File
 	writer  *bufio.Writer
@@ -50,7 +52,7 @@ func (p *Producer) WriteStorage() error {
 	return p.writer.Flush()
 }
 
-func (p *Producer) RunSavingRoutine(interval int) {
+func (p *Producer) RunSavingStorageRoutine(interval int) {
 	go func() {
 		for {
 			if err := p.WriteStorage(); err != nil {
@@ -60,6 +62,8 @@ func (p *Producer) RunSavingRoutine(interval int) {
 		}
 	}()
 }
+
+//--------------------concumer--------------------
 
 type Consumer struct {
 	istream *os.File

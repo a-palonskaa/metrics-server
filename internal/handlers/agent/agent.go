@@ -3,7 +3,6 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/json"
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
@@ -32,7 +31,7 @@ func SendRequest(client *resty.Client, endpoint string, mType string, name strin
 		return fmt.Errorf("unknown type %s", mType)
 	}
 
-	jsonData, err := json.Marshal(body)
+	jsonData, err := body.MarshalJSON()
 	if err != nil {
 		return err
 	}

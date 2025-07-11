@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -52,7 +51,7 @@ func PostJSONValueHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
+	if err = metric.UnmarshalJSON(buf.Bytes()); err != nil {
 		log.Error().Err(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -65,7 +64,7 @@ func PostJSONValueHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	resp, err := json.Marshal(metric)
+	resp, err := metric.MarshalJSON()
 	if err != nil {
 		log.Error().Err(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -102,7 +101,7 @@ func PostJSONUpdateHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err = json.Unmarshal(body, &metric); err != nil {
+	if err = metric.UnmarshalJSON(body); err != nil {
 		log.Error().Err(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -114,7 +113,14 @@ func PostJSONUpdateHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(metric); err != nil {
+	resp, err := metric.MarshalJSON()
+	if err != nil {
+		log.Error().Err(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := w.Write(resp); err != nil {
 		log.Error().Err(err).Msg("error writing response")
 		w.WriteHeader(http.StatusInternalServerError)
 	}

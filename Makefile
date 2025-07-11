@@ -37,4 +37,3 @@ lint:
 clean:
 	rm -f ./cmd/agent/agent ./cmd/server/server coverage.out
 
-

@@ -70,7 +70,7 @@ var cmd = &cobra.Command{
 		if Flags.StoreInterval == 0 {
 			r.Use(server_handler.MakeSavingHandler(p))
 		} else {
-			p.RunSavingRoutine(Flags.StoreInterval)
+			p.RunSavingStorageRoutine(Flags.StoreInterval)
 		}
 
 		r.Route("/", func(r chi.Router) {

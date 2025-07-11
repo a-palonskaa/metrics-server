@@ -42,23 +42,14 @@ var Cmd = &cobra.Command{
 			log.Fatal().Msgf("environment variables parsing error")
 		}
 
-		if cfg.EndpointAddr != "" {
-			Flags.EndpointAddr = cfg.EndpointAddr
-		}
-		if cfg.PollInterval != 0 {
-			Flags.PollInterval = cfg.PollInterval
-		}
-		if cfg.ReportInterval != 0 {
-			Flags.ReportInterval = cfg.PollInterval
-		}
-
+		setFlags(&cfg)
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		memStats := &runtime.MemStats{}
 
 		memstorage.MS.Update(memStats)
-		go memstorage.MS.UpdateRoutine(memStats, time.Duration(Flags.PollInterval)*1e9)
+		go memstorage.MS.UpdateRoutine(memStats, time.Duration(Flags.PollInterval)*time.Second)
 
 		backoffSchedule := []time.Duration{
 			100 * time.Millisecond,
