@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"runtime"
-	"time"
 
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
 )
@@ -145,13 +144,6 @@ func (m *MetricsStorage) Update(memStats *runtime.MemStats) {
 
 	// counter metrics
 	m.CounterMetrics["PollCount"]++
-}
-
-func (m *MetricsStorage) UpdateRoutine(memStats *runtime.MemStats, interval time.Duration) {
-	for {
-		time.Sleep(interval)
-		m.Update(memStats)
-	}
 }
 
 func (m *MetricsStorage) Iterate(f func(string, string, fmt.Stringer)) {

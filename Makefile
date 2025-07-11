@@ -27,6 +27,8 @@ deps:
 
 test:
 	go test ./... -v -coverprofile=coverage.out
+
+test_results:
 	go tool cover -html=coverage.out
 	rm -rf coverage.out
 

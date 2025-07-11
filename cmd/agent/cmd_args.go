@@ -47,20 +47,34 @@ var Cmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		memStats := &runtime.MemStats{}
+		client := resty.New()
 
-		memstorage.MS.Update(memStats)
-		go memstorage.MS.UpdateRoutine(memStats, time.Duration(Flags.PollInterval)*time.Second)
-
-		backoffSchedule := []time.Duration{
+		backoffScedule := []time.Duration{
 			100 * time.Millisecond,
 			500 * time.Millisecond,
 			1 * time.Second,
 		}
 
-		client := resty.New()
+		tickerUpdate := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
+
+		done := make(chan struct{})
+		defer close(done)
+
+		go func() {
+			for {
+				select {
+				case <-tickerUpdate.C:
+					memstorage.MS.Update(memStats)
+				case <-done:
+					tickerUpdate.Stop()
+					return
+				}
+			}
+		}()
+
 		for {
 			memstorage.MS.Iterate(func(key string, mType string, val fmt.Stringer) {
-				for _, backoff := range backoffSchedule {
+				for _, backoff := range backoffScedule {
 					err := agent_handler.SendRequest(client, Flags.EndpointAddr, mType, key, val)
 					if err == nil {
 						break
