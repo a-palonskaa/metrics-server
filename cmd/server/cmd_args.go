@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/fatih/color"
@@ -44,33 +45,39 @@ var cmd = &cobra.Command{
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		c, err := memstorage.NewConsumer(Flags.FileStoragePath)
+		istream, err := os.OpenFile(Flags.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 		if err != nil {
 			log.Fatal().Err(err)
 		}
 
 		if Flags.Restore {
-			if err := c.ReadMetricsStorage(); err != nil {
+			if err := memstorage.ReadMetricsStorage(istream); err != nil {
 				log.Fatal().Err(err)
 			}
 		}
-		if err := c.Close(); err != nil {
+
+		if err := istream.Close(); err != nil {
 			log.Error().Err(err)
 		}
 
-		p, err := memstorage.NewProducer(Flags.FileStoragePath)
+		ostream, err := os.OpenFile(Flags.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			log.Fatal().Err(err)
 		}
+		defer func() {
+			if err := ostream.Close(); err != nil {
+				log.Error().Err(err)
+			}
+		}()
 
 		r := chi.NewRouter()
 
 		r.Use(server_handler.WithCompression)
 		r.Use(server_handler.WithLogging)
 		if Flags.StoreInterval == 0 {
-			r.Use(server_handler.MakeSavingHandler(p))
+			r.Use(server_handler.MakeSavingHandler(ostream))
 		} else {
-			p.RunSavingStorageRoutine(Flags.StoreInterval)
+			memstorage.RunSavingStorageRoutine(ostream, Flags.StoreInterval)
 		}
 
 		server_handler.RouteRequests(r)

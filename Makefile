@@ -11,10 +11,10 @@ SERVER_EXECUTE := ./cmd/server/server
 
 all: deps server agent test lint
 
-server:
+server: deps
 	go build $(GOFLAGS) $(LDFLAGS) -o $(SERVER_EXECUTE) $(SERVER_SOURCES)
 
-agent:
+agent: deps
 	go build $(GOFLAGS) $(LDFLAGS) -o $(AGENT_EXECUTE) $(AGENT_SOURCES)
 
 deps:
