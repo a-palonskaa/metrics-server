@@ -55,7 +55,7 @@ func (p *Producer) WriteMetricsStorage() error {
 func (p *Producer) RunSavingStorageRoutine(interval int) {
 	go func() {
 		for {
-			if err := p.WriteStorage(); err != nil {
+			if err := p.WriteMetricsStorage(); err != nil {
 				log.Fatal().Err(err)
 			}
 			time.Sleep(time.Duration(interval) * time.Second)
