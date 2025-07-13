@@ -16,7 +16,21 @@ import (
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
-//----------------------pots-request-handlers----------------------
+// ----------------------router----------------------
+func RouteRequests(r chi.Router) {
+	r.Route("/", func(r chi.Router) {
+		r.Get("/", RootGetHandler)
+		r.Route("/", func(r chi.Router) {
+			r.Post("/value/", PostJSONValueHandler)
+			r.Get("/value/", AllValueHandler)
+			r.Get("/value/{mType}/{name}", GetHandler)
+			r.Post("/update/", PostJSONUpdateHandler)
+			r.Post("/update/{mType}/{name}/{value}", PostHandler)
+		})
+	})
+}
+
+//----------------------post-request-handlers----------------------
 
 func PostHandler(w http.ResponseWriter, req *http.Request) {
 	mType := chi.URLParam(req, "mType")

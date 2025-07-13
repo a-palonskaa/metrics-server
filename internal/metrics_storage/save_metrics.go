@@ -2,7 +2,6 @@ package metricsstorage
 
 import (
 	"bufio"
-	"encoding/json"
 	"os"
 	"time"
 
@@ -32,13 +31,14 @@ func (p *Producer) Close() error {
 	return p.ostream.Close()
 }
 
-func (p *Producer) WriteStorage() error {
+func (p *Producer) WriteMetricsStorage() error {
 	if _, err := p.ostream.Seek(0, 0); err != nil {
 		return err
 	}
 
-	data, err := json.Marshal(&MS)
+	data, err := MS.MarshalJSON()
 	if err != nil {
+		log.Error().Err(err)
 		return err
 	}
 
@@ -82,13 +82,14 @@ func NewConsumer(filename string) (*Consumer, error) {
 	}, nil
 }
 
-func (c *Consumer) ReadEvent() error {
+func (c *Consumer) ReadMetricsStorage() error {
 	if !c.scanner.Scan() {
 		return c.scanner.Err()
 	}
 	data := c.scanner.Bytes()
 
-	if err := json.Unmarshal(data, &MS); err != nil {
+	if err := MS.UnmarshalJSON(data); err != nil {
+		log.Error().Err(err)
 		return err
 	}
 	return nil

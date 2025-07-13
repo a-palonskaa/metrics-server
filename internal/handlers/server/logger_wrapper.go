@@ -6,12 +6,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type ResponseWriter interface {
-	Header() http.Header
-	Write([]byte) (int, error)
-	WriteHeader(statusCode int)
-}
-
 type responseData struct {
 	status int
 	size   int

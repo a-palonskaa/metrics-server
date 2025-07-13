@@ -11,7 +11,7 @@ func MakeSavingHandler(p *memstorage.Producer) func(fn http.Handler) http.Handle
 	return func(fn http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fn.ServeHTTP(w, r)
-			if err := p.WriteStorage(); err != nil {
+			if err := p.WriteMetricsStorage(); err != nil {
 				log.Error().Err(err)
 			}
 		})

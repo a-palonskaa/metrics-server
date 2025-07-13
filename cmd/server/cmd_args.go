@@ -50,7 +50,7 @@ var cmd = &cobra.Command{
 		}
 
 		if Flags.Restore {
-			if err := c.ReadEvent(); err != nil {
+			if err := c.ReadMetricsStorage(); err != nil {
 				log.Fatal().Err(err)
 			}
 		}
@@ -73,16 +73,7 @@ var cmd = &cobra.Command{
 			p.RunSavingStorageRoutine(Flags.StoreInterval)
 		}
 
-		r.Route("/", func(r chi.Router) {
-			r.Get("/", server_handler.RootGetHandler)
-			r.Route("/", func(r chi.Router) {
-				r.Post("/value/", server_handler.PostJSONValueHandler)
-				r.Get("/value/", server_handler.AllValueHandler)
-				r.Get("/value/{mType}/{name}", server_handler.GetHandler)
-				r.Post("/update/", server_handler.PostJSONUpdateHandler)
-				r.Post("/update/{mType}/{name}/{value}", server_handler.PostHandler)
-			})
-		})
+		server_handler.RouteRequests(r)
 
 		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
 			log.Fatal().Msgf("error loading server: %s", err)

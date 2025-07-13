@@ -8,6 +8,7 @@ import (
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
 )
 
+//easyjson:json
 type MetricsStorage struct {
 	GaugeMetrics   map[string]metrics.Gauge
 	CounterMetrics map[string]metrics.Counter
