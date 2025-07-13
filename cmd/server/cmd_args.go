@@ -22,7 +22,7 @@ func init() {
 	cmd.PersistentFlags().IntVarP(&Flags.StoreInterval, "i", "i", 300, "Saving server data interval")
 	cmd.PersistentFlags().BoolVarP(&Flags.Restore, "r", "r", true, "Saving or not data saved before")
 	cmd.PersistentFlags().StringVarP(&Flags.FileStoragePath, "f", "f", "server-data.txt", "Filepath")
-	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "localhost:5432", "Database filepath") //ХУЙНЯ default name of database
+	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "localhost:5432", "Database filepath") //LINK
 }
 
 var cmd = &cobra.Command{

@@ -15,7 +15,7 @@ func InitLogger(filename string) {
 		ostream = os.Stderr
 	}
 
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	zerolog.TimeFieldFormat = "2006-01-02 15:04:05"
 
 	log.Logger = zerolog.New(ostream).With().Timestamp().Caller().Logger()

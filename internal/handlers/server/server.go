@@ -36,7 +36,6 @@ func RouteRequests(r chi.Router, db *sql.DB) {
 func PingHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := db.Ping(); err != nil {
-			log.Debug().Err(err).Msg("whaat") //ХУЙНЯ -
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
