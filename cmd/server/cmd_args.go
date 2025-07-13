@@ -1,15 +1,12 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
+	"os"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/fatih/color"
 	"github.com/go-chi/chi/v5"
-	_ "github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
-	_ "github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
@@ -22,19 +19,18 @@ func init() {
 	cmd.PersistentFlags().IntVarP(&Flags.StoreInterval, "i", "i", 300, "Saving server data interval")
 	cmd.PersistentFlags().BoolVarP(&Flags.Restore, "r", "r", true, "Saving or not data saved before")
 	cmd.PersistentFlags().StringVarP(&Flags.FileStoragePath, "f", "f", "server-data.txt", "Filepath")
-	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "localhost:5432", "Database filepath") //LINK
 }
 
 var cmd = &cobra.Command{
 	Use:   "server",
 	Short: "http-server for runtime metrics collection",
 	Long: color.New(color.FgGreen).Sprint(`
-    	███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗
-    	██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗
-    	███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝
-    	╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗
-    	███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║
-    	╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝` + "\n" +
+        ███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗
+        ██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗
+        ███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝
+        ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗
+        ███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║
+        ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝` + "\n" +
 		"\tHTTP server for runtime metrics collection" + "\n\n" +
 		"\t\x1b]8;;https://github.com/aliffka\x1b\\" +
 		color.New(color.FgCyan).Sprint("@aliffka") +
@@ -56,36 +52,42 @@ var cmd = &cobra.Command{
 		}
 		defer db.Close()
 
-		c, err := memstorage.NewConsumer(Flags.FileStoragePath)
+		istream, err := os.OpenFile(Flags.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 		if err != nil {
 			log.Fatal().Err(err)
 		}
 
 		if Flags.Restore {
-			if err := c.ReadMetricsStorage(); err != nil {
+			if err := memstorage.ReadMetricsStorage(istream); err != nil {
 				log.Fatal().Err(err)
 			}
 		}
-		if err := c.Close(); err != nil {
+
+		if err := istream.Close(); err != nil {
 			log.Error().Err(err)
 		}
 
-		p, err := memstorage.NewProducer(Flags.FileStoragePath)
+		ostream, err := os.OpenFile(Flags.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			log.Fatal().Err(err)
 		}
+		defer func() {
+			if err := ostream.Close(); err != nil {
+				log.Error().Err(err)
+			}
+		}()
 
-		r := chi.NewRouter()
+		r := chi.NewRouter(db)
 
 		r.Use(server_handler.WithCompression)
 		r.Use(server_handler.WithLogging)
 		if Flags.StoreInterval == 0 {
-			r.Use(server_handler.MakeSavingHandler(p))
+			r.Use(server_handler.MakeSavingHandler(ostream))
 		} else {
-			p.RunSavingStorageRoutine(Flags.StoreInterval)
+			memstorage.RunSavingStorageRoutine(ostream, Flags.StoreInterval)
 		}
 
-		server_handler.RouteRequests(r, db)
+		server_handler.RouteRequests(r)
 
 		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
 			log.Fatal().Msgf("error loading server: %s", err)
