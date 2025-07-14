@@ -36,13 +36,37 @@ func CreateTables(db *sql.DB) error {
 }
 
 func (db MyDB) IsGaugeAllowed(name string) bool {
-	_, err := db.DB.Query("SELECT * FROM GaugeMetrics WHERE ID = $1", name)
-	return err == nil
+	rows, err := db.DB.Query("SELECT * FROM GaugeMetrics WHERE ID = $1", name)
+	if err != nil {
+		return false
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Error().Err(err)
+		}
+	}()
+
+	if err := rows.Err(); err != nil {
+		return false
+	}
+	return true
 }
 
 func (db MyDB) IsCounterAllowed(name string) bool {
-	_, err := db.DB.Query("SELECT * FROM CounterMetrics WHERE ID = $1", name)
-	return err == nil
+	rows, err := db.DB.Query("SELECT * FROM CounterMetrics WHERE ID = $1", name)
+	if err != nil {
+		return false
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Error().Err(err)
+		}
+	}()
+
+	if err := rows.Err(); err != nil {
+		return false
+	}
+	return true
 }
 
 func (db MyDB) IsNameAllowed(mType, name string) bool {
@@ -93,6 +117,10 @@ func (db MyDB) GetGaugeValue(name string) (metrics.Gauge, bool) {
 		return metrics.Gauge(0), false
 	}
 
+	if err := row.Err(); err != nil {
+		return metrics.Gauge(0), false
+	}
+
 	valueGauge := float64(0)
 	if err := row.Scan(&valueGauge); err != nil {
 		log.Error().Err(err)
@@ -104,6 +132,10 @@ func (db MyDB) GetGaugeValue(name string) (metrics.Gauge, bool) {
 func (db MyDB) GetCounterValue(name string) (metrics.Counter, bool) {
 	row := db.DB.QueryRow("SELECT Value FROM CounterMetrics WHERE ID = $1", name)
 	if row == nil {
+		return metrics.Counter(0), false
+	}
+
+	if err := row.Err(); err != nil {
 		return metrics.Counter(0), false
 	}
 

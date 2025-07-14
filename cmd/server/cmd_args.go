@@ -53,17 +53,19 @@ var cmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var ms memstorage.MemStorage
 		var db *sql.DB
-		if Flags.DatabaseAddr != "" {
-			db, err := sql.Open("pgx", Flags.DatabaseAddr)
-			log.Info().Msg(Flags.DatabaseAddr)
-			if err != nil {
-				log.Fatal().Err(err).Msg("Failed to initialize *sql.DB and create a connection pull")
+
+		db, err := sql.Open("pgx", Flags.DatabaseAddr)
+		log.Info().Msg(Flags.DatabaseAddr)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize *sql.DB and create a connection pull")
+		}
+		defer func() {
+			if err := db.Close(); err != nil {
+				log.Fatal().Err(err)
 			}
-			defer func() {
-				if err := db.Close(); err != nil {
-					log.Fatal().Err(err)
-				}
-			}()
+		}()
+
+		if Flags.DatabaseAddr != "" {
 			if err := database.CreateTables(db); err != nil {
 				log.Fatal().Err(err)
 			}
