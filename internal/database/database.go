@@ -193,6 +193,11 @@ func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 		}
 	}()
 
+	if err := rowsGauge.Err(); err != nil {
+		log.Error().Err(err)
+		return
+	}
+
 	name := ""
 	valueGauge := metrics.Gauge(0)
 	for rowsGauge.Next() {
@@ -213,6 +218,11 @@ func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 			log.Error().Err(err)
 		}
 	}()
+
+	if err := rowsCounter.Err(); err != nil {
+		log.Error().Err(err)
+		return
+	}
 
 	valueCounter := metrics.Counter(0)
 	for rowsCounter.Next() {
