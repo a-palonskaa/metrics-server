@@ -170,7 +170,7 @@ func AddCounterTx(tx *sql.Tx, name string, val metrics.Counter) {
 	}
 }
 
-func AddGaugeTx(tx *sql.Tx, name string, val metrics.Counter) {
+func AddGaugeTx(tx *sql.Tx, name string, val metrics.Gauge) {
 	_, err := tx.Exec(`
 		INSERT INTO GaugeMetrics (ID, Value)
         VALUES ($1, $2)
@@ -318,9 +318,9 @@ func (db MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
 	for _, metric := range *mt {
 		switch metric.MType {
 		case "gauge":
-			AddGaugeTx(metric.ID, metrics.Gauge(*metric.Value))
+			AddGaugeTx(tx, metric.ID, metrics.Gauge(*metric.Value))
 		case "counter":
-			AddCounterTx(metric.ID, metrics.Counter(*metric.Delta))
+			AddCounterTx(tx, metric.ID, metrics.Counter(*metric.Delta))
 		default:
 			return http.StatusBadRequest
 		}
