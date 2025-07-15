@@ -27,6 +27,7 @@ func RouteRequests(r chi.Router, db *sql.DB, ms memstorage.MemStorage) {
 			r.Get("/value/", AllValueHandler(ms))
 			r.Get("/value/{mType}/{name}", GetHandler(ms))
 			r.Post("/update/", PostJSONUpdateHandler(ms))
+			r.Post("/updates/", PostJSONUpdatesHandler(ms))
 			r.Post("/update/{mType}/{name}/{value}", PostHandler(ms))
 		})
 	})
@@ -146,6 +147,59 @@ func PostJSONUpdateHandler(ms memstorage.MemStorage) http.HandlerFunc {
 		}
 
 		resp, err := metric.MarshalJSON()
+		if err != nil {
+			log.Error().Err(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if _, err := w.Write(resp); err != nil {
+			log.Error().Err(err).Msg("error writing response")
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func PostJSONUpdatesHandler(ms memstorage.MemStorage) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		contentType := req.Header.Get("Content-Type")
+		if contentType != "application/json" {
+			log.Error().Msg("JSON format is required")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if req.ContentLength == 0 {
+			log.Error().Msg("Empty body")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var metrics metrics.MetricsS
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			log.Error().Err(err).Msg("Error Reading body")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if err = metrics.UnmarshalJSON(body); err != nil {
+			log.Error().Err(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		for _, metric := range metrics {
+			if ok := addMetricToStorage(ms, &metric); !ok {
+				log.Error().Msgf("unknown type: %s", metric.MType)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}
+
+		resp, err := metrics.MarshalJSON()
 		if err != nil {
 			log.Error().Err(err)
 			w.WriteHeader(http.StatusInternalServerError)
