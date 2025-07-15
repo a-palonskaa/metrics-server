@@ -170,6 +170,23 @@ func AddCounterTx(tx *sql.Tx, name string, val metrics.Counter) {
 	}
 }
 
+func AddGaugeTx(tx *sql.Tx, name string, val metrics.Counter) {
+	_, err := tx.Exec(`
+		INSERT INTO GaugeMetrics (ID, Value)
+        VALUES ($1, $2)
+        ON CONFLICT (ID)
+        DO UPDATE SET Value = EXCLUDED.Value
+		`, name, float64(val),
+	)
+
+	if err != nil {
+		log.Error().Err(err).Msg("failed to add gauge metric")
+		if err := tx.Rollback(); err != nil {
+			log.Error().Err(err).Msg("failed to roll back")
+		}
+	}
+}
+
 func ExecQuery(stmt *sql.Stmt, args ...interface{}) {
 	_, err := stmt.Exec(args...)
 	if err != nil {
@@ -292,51 +309,25 @@ func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 //----------------------sex----------------------  //SEX
 
 func (db MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
-	//tx, err := db.DB.Begin()
-	//if err != nil {
-	//	log.Error().Err(err)
-	//	return http.StatusOK
-	//}
-	//
-	//stmt, err := tx.Prepare(`INSERT INTO GaugeMetrics (ID, Value)
-	//    VALUES (?, ?)
-	//    ON CONFLICT (ID)
-	//    DO UPDATE SET Value = EXCLUDED.Value`)
-	//if err != nil {
-	//	log.Error().Err(err)
-	//	return http.StatusOK
-	//}
-	//defer func() {
-	//	if err := stmt.Close(); err != nil {
-	//		log.Error().Err(err)
-	//	}
-	//}()
-	//
-	//for _, metric := range *mt {
-	//	switch metric.MType {
-	//	case "gauge":
-	//		ExecQuery(stmt, metric.ID, metrics.Gauge(*metric.Value))
-	//	case "counter":
-	//		db.AddCounter(metric.ID, metrics.Counter(*metric.Delta))
-	//	default:
-	//		return http.StatusBadRequest
-	//	}
-	//}
-	//
-	//if err := tx.Commit(); err != nil {
-	//	log.Error().Err(err)
-	//}
-	//return http.StatusOK
+	tx, err := db.DB.Begin()
+	if err != nil {
+		log.Error().Err(err)
+		return http.StatusOK
+	}
 
 	for _, metric := range *mt {
 		switch metric.MType {
 		case "gauge":
-			db.AddGauge(metric.ID, metrics.Gauge(*metric.Value))
+			AddGaugeTx(metric.ID, metrics.Gauge(*metric.Value))
 		case "counter":
-			db.AddCounter(metric.ID, metrics.Counter(*metric.Delta))
+			AddCounterTx(metric.ID, metrics.Counter(*metric.Delta))
 		default:
 			return http.StatusBadRequest
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Error().Err(err)
 	}
 	return http.StatusOK
 }
