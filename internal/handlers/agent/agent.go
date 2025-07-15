@@ -13,26 +13,7 @@ import (
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
-func SendRequest(client *resty.Client, endpoint string, mType string, name string, val fmt.Stringer) error {
-	body := metrics.Metrics{
-		ID:    name,
-		MType: mType,
-	}
-
-	switch mType {
-	case "gauge":
-		gVal, _ := val.(metrics.Gauge)
-		fVal := float64(gVal)
-		body.Value = &fVal
-	case "counter":
-		cVal, _ := val.(metrics.Counter)
-		iVal := int64(cVal)
-		body.Delta = &iVal
-	default:
-		log.Error().Msg("unknown type")
-		return fmt.Errorf("unknown type %s", mType)
-	}
-
+func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) error {
 	jsonData, err := body.MarshalJSON()
 	if err != nil {
 		return err
@@ -52,7 +33,7 @@ func SendRequest(client *resty.Client, endpoint string, mType string, name strin
 		SetHeader("Accept-Encoding", "gzip").
 		SetHeader("Content-Encoding", "gzip").
 		SetBody(buf).
-		Post("/update/")
+		Post("/updates/")
 	if err != nil {
 		log.Error().Err(err).Msg("failed to send request")
 		return err
@@ -62,15 +43,33 @@ func SendRequest(client *resty.Client, endpoint string, mType string, name strin
 
 func MakeSendMetricsFunc(client *resty.Client, endpointAddr string, backoffScedule []time.Duration) func() {
 	return func() {
-		memstorage.MS.Iterate(func(key string, mType string, val fmt.Stringer) {
-			for _, backoff := range backoffScedule {
-				err := SendRequest(client, endpointAddr, mType, key, val)
-				if err == nil {
-					break
+		var metric metrics.Metrics
+		var body []metrics.Metrics
+		for _, backoff := range backoffScedule {
+			memstorage.MS.Iterate(func(key string, mType string, val fmt.Stringer) {
+				metric.ID = key
+				metric.MType = mType
+				switch mType {
+				case "gauge":
+					gVal, _ := val.(metrics.Gauge)
+					fVal := float64(gVal)
+					metric.Value = &fVal
+				case "counter":
+					cVal, _ := val.(metrics.Counter)
+					iVal := int64(cVal)
+					metric.Delta = &iVal
+				default:
+					log.Error().Msg("unknown type")
+					return
 				}
-				log.Error().Msgf("error sending %s metric %s(%v): %v\n", mType, key, val, err)
-				time.Sleep(backoff)
+				body = append(body, metric)
+			})
+
+			if err := SendRequest(client, endpointAddr, metrics.MetricsS(body)); err != nil {
+				log.Error().Err(err)
 			}
-		})
+			time.Sleep(backoff)
+		}
+
 	}
 }
