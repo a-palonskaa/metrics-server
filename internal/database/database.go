@@ -291,11 +291,11 @@ func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 
 //----------------------sex----------------------  //SEX
 
-func (ms MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
-	tx, err := ms.DB.Begin()
+func (db MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
+	tx, err := db.DB.Begin()
 	if err != nil {
 		log.Error().Err(err)
-		return http.StatusInternalServerError
+		return http.StatusOK
 	}
 
 	stmt, err := tx.Prepare(`INSERT INTO GaugeMetrics (ID, Value)
@@ -304,7 +304,7 @@ func (ms MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
         DO UPDATE SET Value = EXCLUDED.Value`)
 	if err != nil {
 		log.Error().Err(err)
-		return http.StatusInternalServerError
+		return http.StatusOK
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
@@ -317,7 +317,7 @@ func (ms MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
 		case "gauge":
 			ExecQuery(stmt, metric.ID, metrics.Gauge(*metric.Value))
 		case "counter":
-			ms.AddCounter(metric.ID, metrics.Counter(*metric.Delta))
+			db.AddCounter(metric.ID, metrics.Counter(*metric.Delta))
 		default:
 			return http.StatusBadRequest
 		}
@@ -325,7 +325,6 @@ func (ms MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
 
 	if err := tx.Commit(); err != nil {
 		log.Error().Err(err)
-		return http.StatusInternalServerError
 	}
 	return http.StatusOK
 }
