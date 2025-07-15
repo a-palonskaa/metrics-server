@@ -153,22 +153,6 @@ func (db MyDB) GetCounterValue(name string) (metrics.Counter, bool) {
 	return metrics.Counter(valueCounter), true
 }
 
-func AddGaugeTx(tx *sql.Tx, name string, val metrics.Gauge) {
-	_, err := tx.Exec(`
-		INSERT INTO GaugeMetrics (ID, Value)
-        VALUES ($1, $2)
-        ON CONFLICT (ID)
-        DO UPDATE SET Value = EXCLUDED.Value
-		`, name, float64(val),
-	)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to add gauge metric")
-		if err := tx.Rollback(); err != nil {
-			log.Error().Err(err).Msg("failed to roll back")
-		}
-	}
-}
-
 func AddCounterTx(tx *sql.Tx, name string, val metrics.Counter) {
 	_, err := tx.Exec(`
 		INSERT INTO CounterMetrics (ID, Value)
@@ -185,6 +169,13 @@ func AddCounterTx(tx *sql.Tx, name string, val metrics.Counter) {
 	}
 }
 
+func execQuery(stmt *sql.Stmt, args ...interface{}) {
+	_, err := stmt.Exec(args...)
+	if err != nil {
+		log.Error().Err(err)
+	}
+}
+
 func (db MyDB) Update(memStats *runtime.MemStats) {
 	runtime.ReadMemStats(memStats)
 
@@ -194,34 +185,49 @@ func (db MyDB) Update(memStats *runtime.MemStats) {
 		return
 	}
 
-	AddGaugeTx(tx, "Alloc", metrics.Gauge(memStats.Alloc))
-	AddGaugeTx(tx, "BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
-	AddGaugeTx(tx, "Frees", metrics.Gauge(memStats.Frees))
-	AddGaugeTx(tx, "GCCPUFraction", metrics.Gauge(memStats.GCCPUFraction))
-	AddGaugeTx(tx, "GCSys", metrics.Gauge(memStats.GCSys))
-	AddGaugeTx(tx, "HeapAlloc", metrics.Gauge(memStats.HeapAlloc))
-	AddGaugeTx(tx, "HeapIdle", metrics.Gauge(memStats.HeapIdle))
-	AddGaugeTx(tx, "HeapInuse", metrics.Gauge(memStats.HeapInuse))
-	AddGaugeTx(tx, "HeapObjects", metrics.Gauge(memStats.HeapObjects))
-	AddGaugeTx(tx, "HeapReleased", metrics.Gauge(memStats.HeapReleased))
-	AddGaugeTx(tx, "LastGC", metrics.Gauge(memStats.LastGC))
-	AddGaugeTx(tx, "Lookups", metrics.Gauge(memStats.Lookups))
-	AddGaugeTx(tx, "MCacheInuse", metrics.Gauge(memStats.MCacheInuse))
-	AddGaugeTx(tx, "MCacheSys", metrics.Gauge(memStats.MCacheSys))
-	AddGaugeTx(tx, "MSpanInuse", metrics.Gauge(memStats.MSpanInuse))
-	AddGaugeTx(tx, "MSpanSys", metrics.Gauge(memStats.MSpanSys))
-	AddGaugeTx(tx, "Mallocs", metrics.Gauge(memStats.Mallocs))
-	AddGaugeTx(tx, "NextGC", metrics.Gauge(memStats.NextGC))
-	AddGaugeTx(tx, "NumForcedGC", metrics.Gauge(memStats.NumForcedGC))
-	AddGaugeTx(tx, "NumGC", metrics.Gauge(memStats.NumGC))
-	AddGaugeTx(tx, "OtherSys", metrics.Gauge(memStats.OtherSys))
-	AddGaugeTx(tx, "PauseTotalNs", metrics.Gauge(memStats.PauseTotalNs))
-	AddGaugeTx(tx, "StackInuse", metrics.Gauge(memStats.StackInuse))
-	AddGaugeTx(tx, "StackSys", metrics.Gauge(memStats.StackSys))
-	AddGaugeTx(tx, "Sys", metrics.Gauge(memStats.Sys))
-	AddGaugeTx(tx, "TotalAlloc", metrics.Gauge(memStats.TotalAlloc))
-	AddGaugeTx(tx, "HeapSys", metrics.Gauge(memStats.HeapSys))
-	AddGaugeTx(tx, "RandomValue", metrics.Gauge(rand.Float64()))
+	stmt, err := tx.Prepare(`INSERT INTO GaugeMetrics (ID, Value)
+        VALUES (?, ?)
+        ON CONFLICT (ID)
+        DO UPDATE SET Value = EXCLUDED.Value`)
+	if err != nil {
+		log.Error().Err(err)
+		return
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.Error().Err(err)
+		}
+	}()
+
+	execQuery(stmt, "Alloc", metrics.Gauge(memStats.Alloc))
+	execQuery(stmt, "Alloc", metrics.Gauge(memStats.Alloc))
+	execQuery(stmt, "BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
+	execQuery(stmt, "Frees", metrics.Gauge(memStats.Frees))
+	execQuery(stmt, "GCCPUFraction", metrics.Gauge(memStats.GCCPUFraction))
+	execQuery(stmt, "GCSys", metrics.Gauge(memStats.GCSys))
+	execQuery(stmt, "HeapAlloc", metrics.Gauge(memStats.HeapAlloc))
+	execQuery(stmt, "HeapIdle", metrics.Gauge(memStats.HeapIdle))
+	execQuery(stmt, "HeapInuse", metrics.Gauge(memStats.HeapInuse))
+	execQuery(stmt, "HeapObjects", metrics.Gauge(memStats.HeapObjects))
+	execQuery(stmt, "HeapReleased", metrics.Gauge(memStats.HeapReleased))
+	execQuery(stmt, "LastGC", metrics.Gauge(memStats.LastGC))
+	execQuery(stmt, "Lookups", metrics.Gauge(memStats.Lookups))
+	execQuery(stmt, "MCacheInuse", metrics.Gauge(memStats.MCacheInuse))
+	execQuery(stmt, "MCacheSys", metrics.Gauge(memStats.MCacheSys))
+	execQuery(stmt, "MSpanInuse", metrics.Gauge(memStats.MSpanInuse))
+	execQuery(stmt, "MSpanSys", metrics.Gauge(memStats.MSpanSys))
+	execQuery(stmt, "Mallocs", metrics.Gauge(memStats.Mallocs))
+	execQuery(stmt, "NextGC", metrics.Gauge(memStats.NextGC))
+	execQuery(stmt, "NumForcedGC", metrics.Gauge(memStats.NumForcedGC))
+	execQuery(stmt, "NumGC", metrics.Gauge(memStats.NumGC))
+	execQuery(stmt, "OtherSys", metrics.Gauge(memStats.OtherSys))
+	execQuery(stmt, "PauseTotalNs", metrics.Gauge(memStats.PauseTotalNs))
+	execQuery(stmt, "StackInuse", metrics.Gauge(memStats.StackInuse))
+	execQuery(stmt, "StackSys", metrics.Gauge(memStats.StackSys))
+	execQuery(stmt, "Sys", metrics.Gauge(memStats.Sys))
+	execQuery(stmt, "TotalAlloc", metrics.Gauge(memStats.TotalAlloc))
+	execQuery(stmt, "HeapSys", metrics.Gauge(memStats.HeapSys))
+	execQuery(stmt, "RandomValue", metrics.Gauge(rand.Float64()))
 	AddCounterTx(tx, "PollCount", metrics.Counter(1))
 
 	if err := tx.Commit(); err != nil {
