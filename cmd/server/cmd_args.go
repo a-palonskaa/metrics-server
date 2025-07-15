@@ -8,8 +8,6 @@ import (
 	"github.com/caarlos0/env/v6"
 	"github.com/fatih/color"
 	"github.com/go-chi/chi/v5"
-	_ "github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -24,7 +22,7 @@ func init() {
 	cmd.PersistentFlags().IntVarP(&Flags.StoreInterval, "i", "i", 300, "Saving server data interval")
 	cmd.PersistentFlags().BoolVarP(&Flags.Restore, "r", "r", true, "Saving or not data saved before")
 	cmd.PersistentFlags().StringVarP(&Flags.FileStoragePath, "f", "f", "server-data.txt", "Filepath")
-	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "", "Database filepath") //LINK
+	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "", "Database filepath")
 }
 
 var cmd = &cobra.Command{

@@ -6,8 +6,6 @@ import (
 	"math/rand"
 	"runtime"
 
-	_ "github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 
@@ -38,6 +36,7 @@ func CreateTables(db *sql.DB) error {
 func (db MyDB) IsGaugeAllowed(name string) bool {
 	rows, err := db.DB.Query("SELECT * FROM GaugeMetrics WHERE ID = $1", name)
 	if err != nil {
+		log.Error().Err(err)
 		return false
 	}
 	defer func() {
@@ -47,6 +46,7 @@ func (db MyDB) IsGaugeAllowed(name string) bool {
 	}()
 
 	if err := rows.Err(); err != nil {
+		log.Error().Err(err)
 		return false
 	}
 	return true
@@ -55,6 +55,7 @@ func (db MyDB) IsGaugeAllowed(name string) bool {
 func (db MyDB) IsCounterAllowed(name string) bool {
 	rows, err := db.DB.Query("SELECT * FROM CounterMetrics WHERE ID = $1", name)
 	if err != nil {
+		log.Error().Err(err)
 		return false
 	}
 	defer func() {
@@ -64,6 +65,7 @@ func (db MyDB) IsCounterAllowed(name string) bool {
 	}()
 
 	if err := rows.Err(); err != nil {
+		log.Error().Err(err)
 		return false
 	}
 	return true
@@ -76,35 +78,32 @@ func (db MyDB) IsNameAllowed(mType, name string) bool {
 	case metrics.CounterName:
 		return db.IsCounterAllowed(name)
 	default:
+		log.Error().Msgf("unallowed type %s", mType)
 		return false
 	}
 }
 
 func (db MyDB) AddGauge(name string, val metrics.Gauge) {
 	log.Info().Msg("AddingGauge")
-	_, err := db.DB.Exec(
-		`INSERT INTO GaugeMetrics (ID, Value)
-         VALUES ($1, $2)
-         ON CONFLICT (ID)
-         DO UPDATE SET Value = EXCLUDED.Value`, //SEX
-		name,
-		float64(val),
+	_, err := db.DB.Exec(`
+		INSERT INTO GaugeMetrics (ID, Value)
+        VALUES ($1, $2)
+        ON CONFLICT (ID)
+        DO UPDATE SET Value = EXCLUDED.Value
+		`, name, float64(val),
 	)
-	log.Info().Err(err).Msg("Added")
 	if err != nil {
-		log.Error().Err(err)
-		return
+		log.Error().Err(err).Msg("failed to add gauge metric")
 	}
 }
 
 func (db MyDB) AddCounter(name string, val metrics.Counter) {
-	_, err := db.DB.Exec(
-		`INSERT INTO CounterMetrics (ID, Value)
-         VALUES ($1, $2)
-         ON CONFLICT (ID)
-         DO UPDATE SET Value = CounterMetrics.Value + EXCLUDED.Value`,
-		name,
-		int64(val),
+	_, err := db.DB.Exec(`
+		INSERT INTO CounterMetrics (ID, Value)
+        VALUES ($1, $2)
+        ON CONFLICT (ID)
+        DO UPDATE SET Value = CounterMetrics.Value + EXCLUDED.Value
+		`, name, int64(val),
 	)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to increment counter metric")
@@ -114,10 +113,12 @@ func (db MyDB) AddCounter(name string, val metrics.Counter) {
 func (db MyDB) GetGaugeValue(name string) (metrics.Gauge, bool) {
 	row := db.DB.QueryRow("SELECT Value FROM GaugeMetrics WHERE ID = $1", name)
 	if row == nil {
+		log.Info().Msgf("no gauge val with name %s found", name)
 		return metrics.Gauge(0), false
 	}
 
 	if err := row.Err(); err != nil {
+		log.Error().Err(err)
 		return metrics.Gauge(0), false
 	}
 
@@ -132,10 +133,12 @@ func (db MyDB) GetGaugeValue(name string) (metrics.Gauge, bool) {
 func (db MyDB) GetCounterValue(name string) (metrics.Counter, bool) {
 	row := db.DB.QueryRow("SELECT Value FROM CounterMetrics WHERE ID = $1", name)
 	if row == nil {
+		log.Info().Msgf("no counter val with name %s found", name)
 		return metrics.Counter(0), false
 	}
 
 	if err := row.Err(); err != nil {
+		log.Error().Err(err)
 		return metrics.Counter(0), false
 	}
 
