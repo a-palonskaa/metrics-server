@@ -8,6 +8,8 @@ import (
 	"github.com/caarlos0/env/v6"
 	"github.com/fatih/color"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"

@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"runtime"
 
+	_ "github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 
@@ -23,15 +25,17 @@ func CreateTables(db *sql.DB) error {
 
 		CREATE TABLE GaugeMetrics (
 			ID varchar(64) PRIMARY KEY,
-			Value DOUBLE PRECISION
+			Value DOUBLE PRECISION NOT NULL
 		);
 
 		CREATE TABLE CounterMetrics (
 			ID varchar(64) PRIMARY KEY,
-			Value BIGINT
+			Value BIGINT NOT NULL
 		);`)
 	return err
 }
+
+//----------------------mem-storage interface----------------------
 
 func (db MyDB) IsGaugeAllowed(name string) bool {
 	rows, err := db.DB.Query("SELECT * FROM GaugeMetrics WHERE ID = $1", name)
@@ -84,7 +88,6 @@ func (db MyDB) IsNameAllowed(mType, name string) bool {
 }
 
 func (db MyDB) AddGauge(name string, val metrics.Gauge) {
-	log.Info().Msg("AddingGauge")
 	_, err := db.DB.Exec(`
 		INSERT INTO GaugeMetrics (ID, Value)
         VALUES ($1, $2)
@@ -150,38 +153,80 @@ func (db MyDB) GetCounterValue(name string) (metrics.Counter, bool) {
 	return metrics.Counter(valueCounter), true
 }
 
+func AddGaugeTx(tx *sql.Tx, name string, val metrics.Gauge) {
+	_, err := tx.Exec(`
+		INSERT INTO GaugeMetrics (ID, Value)
+        VALUES ($1, $2)
+        ON CONFLICT (ID)
+        DO UPDATE SET Value = EXCLUDED.Value
+		`, name, float64(val),
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to add gauge metric")
+		if err := tx.Rollback(); err != nil {
+			log.Error().Err(err).Msg("failed to roll back")
+		}
+	}
+}
+
+func AddCounterTx(tx *sql.Tx, name string, val metrics.Counter) {
+	_, err := tx.Exec(`
+		INSERT INTO CounterMetrics (ID, Value)
+        VALUES ($1, $2)
+        ON CONFLICT (ID)
+        DO UPDATE SET Value = CounterMetrics.Value + EXCLUDED.Value
+		`, name, int64(val),
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to increment counter metric")
+		if err := tx.Rollback(); err != nil {
+			log.Error().Err(err).Msg("failed to roll back")
+		}
+	}
+}
+
 func (db MyDB) Update(memStats *runtime.MemStats) {
 	runtime.ReadMemStats(memStats)
 
-	db.AddGauge("Alloc", metrics.Gauge(memStats.Alloc))
-	db.AddGauge("BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
-	db.AddGauge("Frees", metrics.Gauge(memStats.Frees))
-	db.AddGauge("GCCPUFraction", metrics.Gauge(memStats.GCCPUFraction))
-	db.AddGauge("GCSys", metrics.Gauge(memStats.GCSys))
-	db.AddGauge("HeapAlloc", metrics.Gauge(memStats.HeapAlloc))
-	db.AddGauge("HeapIdle", metrics.Gauge(memStats.HeapIdle))
-	db.AddGauge("HeapInuse", metrics.Gauge(memStats.HeapInuse))
-	db.AddGauge("HeapObjects", metrics.Gauge(memStats.HeapObjects))
-	db.AddGauge("HeapReleased", metrics.Gauge(memStats.HeapReleased))
-	db.AddGauge("LastGC", metrics.Gauge(memStats.LastGC))
-	db.AddGauge("Lookups", metrics.Gauge(memStats.Lookups))
-	db.AddGauge("MCacheInuse", metrics.Gauge(memStats.MCacheInuse))
-	db.AddGauge("MCacheSys", metrics.Gauge(memStats.MCacheSys))
-	db.AddGauge("MSpanInuse", metrics.Gauge(memStats.MSpanInuse))
-	db.AddGauge("MSpanSys", metrics.Gauge(memStats.MSpanSys))
-	db.AddGauge("Mallocs", metrics.Gauge(memStats.Mallocs))
-	db.AddGauge("NextGC", metrics.Gauge(memStats.NextGC))
-	db.AddGauge("NumForcedGC", metrics.Gauge(memStats.NumForcedGC))
-	db.AddGauge("NumGC", metrics.Gauge(memStats.NumGC))
-	db.AddGauge("OtherSys", metrics.Gauge(memStats.OtherSys))
-	db.AddGauge("PauseTotalNs", metrics.Gauge(memStats.PauseTotalNs))
-	db.AddGauge("StackInuse", metrics.Gauge(memStats.StackInuse))
-	db.AddGauge("StackSys", metrics.Gauge(memStats.StackSys))
-	db.AddGauge("Sys", metrics.Gauge(memStats.Sys))
-	db.AddGauge("TotalAlloc", metrics.Gauge(memStats.TotalAlloc))
-	db.AddGauge("HeapSys", metrics.Gauge(memStats.HeapSys))
-	db.AddGauge("RandomValue", metrics.Gauge(rand.Float64()))
-	db.AddCounter("PollCount", metrics.Counter(1))
+	tx, err := db.DB.Begin()
+	if err != nil {
+		log.Error().Err(err)
+		return
+	}
+
+	AddGaugeTx(tx, "Alloc", metrics.Gauge(memStats.Alloc))
+	AddGaugeTx(tx, "BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
+	AddGaugeTx(tx, "Frees", metrics.Gauge(memStats.Frees))
+	AddGaugeTx(tx, "GCCPUFraction", metrics.Gauge(memStats.GCCPUFraction))
+	AddGaugeTx(tx, "GCSys", metrics.Gauge(memStats.GCSys))
+	AddGaugeTx(tx, "HeapAlloc", metrics.Gauge(memStats.HeapAlloc))
+	AddGaugeTx(tx, "HeapIdle", metrics.Gauge(memStats.HeapIdle))
+	AddGaugeTx(tx, "HeapInuse", metrics.Gauge(memStats.HeapInuse))
+	AddGaugeTx(tx, "HeapObjects", metrics.Gauge(memStats.HeapObjects))
+	AddGaugeTx(tx, "HeapReleased", metrics.Gauge(memStats.HeapReleased))
+	AddGaugeTx(tx, "LastGC", metrics.Gauge(memStats.LastGC))
+	AddGaugeTx(tx, "Lookups", metrics.Gauge(memStats.Lookups))
+	AddGaugeTx(tx, "MCacheInuse", metrics.Gauge(memStats.MCacheInuse))
+	AddGaugeTx(tx, "MCacheSys", metrics.Gauge(memStats.MCacheSys))
+	AddGaugeTx(tx, "MSpanInuse", metrics.Gauge(memStats.MSpanInuse))
+	AddGaugeTx(tx, "MSpanSys", metrics.Gauge(memStats.MSpanSys))
+	AddGaugeTx(tx, "Mallocs", metrics.Gauge(memStats.Mallocs))
+	AddGaugeTx(tx, "NextGC", metrics.Gauge(memStats.NextGC))
+	AddGaugeTx(tx, "NumForcedGC", metrics.Gauge(memStats.NumForcedGC))
+	AddGaugeTx(tx, "NumGC", metrics.Gauge(memStats.NumGC))
+	AddGaugeTx(tx, "OtherSys", metrics.Gauge(memStats.OtherSys))
+	AddGaugeTx(tx, "PauseTotalNs", metrics.Gauge(memStats.PauseTotalNs))
+	AddGaugeTx(tx, "StackInuse", metrics.Gauge(memStats.StackInuse))
+	AddGaugeTx(tx, "StackSys", metrics.Gauge(memStats.StackSys))
+	AddGaugeTx(tx, "Sys", metrics.Gauge(memStats.Sys))
+	AddGaugeTx(tx, "TotalAlloc", metrics.Gauge(memStats.TotalAlloc))
+	AddGaugeTx(tx, "HeapSys", metrics.Gauge(memStats.HeapSys))
+	AddGaugeTx(tx, "RandomValue", metrics.Gauge(rand.Float64()))
+	AddCounterTx(tx, "PollCount", metrics.Counter(1))
+
+	if err := tx.Commit(); err != nil {
+		log.Error().Err(err)
+	}
 }
 
 func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
@@ -236,3 +281,5 @@ func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 		f(name, metrics.CounterName, valueCounter)
 	}
 }
+
+//----------------------sex----------------------
