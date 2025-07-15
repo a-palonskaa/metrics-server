@@ -3,6 +3,7 @@ package metricsstorage
 import (
 	"fmt"
 	"math/rand"
+	"net/http"
 	"runtime"
 
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
@@ -18,6 +19,7 @@ type MemStorage interface {
 	GetCounterValue(name string) (metrics.Counter, bool)
 	Update(memStats *runtime.MemStats)
 	Iterate(f func(string, string, fmt.Stringer))
+	AddMetricsToStorage(metrics *metrics.MetricsS) int
 }
 
 //easyjson:json
@@ -167,4 +169,18 @@ func (m *MetricsStorage) Iterate(f func(string, string, fmt.Stringer)) {
 	for key, value := range m.CounterMetrics {
 		f(key, metrics.CounterName, value)
 	}
+}
+
+func (m *MetricsStorage) AddMetricsToStorage(mt *metrics.MetricsS) int {
+	for _, metric := range *mt {
+		switch metric.MType {
+		case "gauge":
+			m.AddGauge(metric.ID, metrics.Gauge(*metric.Value))
+		case "counter":
+			m.AddCounter(metric.ID, metrics.Counter(*metric.Delta))
+		default:
+			return http.StatusBadRequest
+		}
+	}
+	return http.StatusOK
 }

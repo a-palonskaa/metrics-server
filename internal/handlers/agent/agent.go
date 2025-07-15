@@ -14,6 +14,10 @@ import (
 )
 
 func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) error {
+	if len(body) == 0 {
+		return nil
+	}
+
 	jsonData, err := body.MarshalJSON()
 	if err != nil {
 		return err

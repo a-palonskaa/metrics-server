@@ -191,12 +191,9 @@ func PostJSONUpdatesHandler(ms memstorage.MemStorage) http.HandlerFunc {
 			return
 		}
 
-		for _, metric := range metrics {
-			if ok := addMetricToStorage(ms, &metric); !ok {
-				log.Error().Msgf("unknown type: %s", metric.MType)
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
+		if status := ms.AddMetricsToStorage(&metrics); status != http.StatusOK {
+			w.WriteHeader(status)
+			return
 		}
 
 		resp, err := metrics.MarshalJSON()
