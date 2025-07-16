@@ -50,9 +50,9 @@ func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) e
 
 func MakeSendMetricsFunc(client *resty.Client, endpointAddr string) func() {
 	return func() {
-		var metric metrics.Metrics
 		err := errhandler.RetriableErrHadler(
 			func() error {
+				var metric metrics.Metrics
 				var body []metrics.Metrics
 				memstorage.MS.Iterate(func(key string, mType string, val fmt.Stringer) {
 					metric.ID = key

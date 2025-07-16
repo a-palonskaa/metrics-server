@@ -386,7 +386,7 @@ func (db MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
 		return http.StatusOK
 	}
 
-	for _, metric := range *mt {
+	for _, metric := range *mt {=
 		switch metric.MType {
 		case "gauge":
 			AddGaugeTx(tx, metric.ID, metrics.Gauge(*metric.Value))
