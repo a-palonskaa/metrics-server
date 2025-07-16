@@ -9,9 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// args ...interface{}
-// ХУЙНЯ
-func RetriableErrHadlerRV[T any](f func() (T, error), compare func(error) bool) (T, error) {
+func RetriableErrHadler[T any](f func() (T, error), compare func(error) bool) (T, error) {
 	backoffScedule := []time.Duration{
 		1 * time.Second,
 		3 * time.Second,
@@ -25,7 +23,7 @@ func RetriableErrHadlerRV[T any](f func() (T, error), compare func(error) bool) 
 
 	for _, backoff := range backoffScedule {
 		args, err = f()
-		if errors.Is(err, nil) {
+		if err == nil {
 			return args, nil
 		}
 		log.Error().Err(err)
@@ -38,30 +36,10 @@ func RetriableErrHadlerRV[T any](f func() (T, error), compare func(error) bool) 
 	return args, err
 }
 
-func RetriableErrHadler(f func() error, compare func(error) bool) error {
-	backoffScedule := []time.Duration{
-		1 * time.Second,
-		3 * time.Second,
-		5 * time.Second,
-	}
-
-	var (
-		err error
-	)
-
-	for _, backoff := range backoffScedule {
-		err = f()
-		if errors.Is(err, nil) {
-			return nil
-		}
-		log.Error().Err(err)
-
-		retry := compare(err)
-		if !retry {
-			return err
-		}
-		time.Sleep(backoff)
-	}
+func RetriableErrHadlerVoid(f func() error, compare func(error) bool) error {
+	_, err := RetriableErrHadler(func() (struct{}, error) {
+		return struct{}{}, f()
+	}, compare)
 	return err
 }
 

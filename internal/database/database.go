@@ -21,7 +21,7 @@ type MyDB struct {
 }
 
 func CreateTables(db *sql.DB) error {
-	return errhandlers.RetriableErrHadler(func() error {
+	return errhandlers.RetriableErrHadlerVoid(func() error {
 		_, err := db.Exec(`
 		DROP TABLE IF EXISTS GaugeMetrics;
 		DROP TABLE IF EXISTS CounterMetrics;
@@ -42,7 +42,7 @@ func CreateTables(db *sql.DB) error {
 //----------------------mem-storage interface----------------------
 
 func (db MyDB) IsGaugeAllowed(name string) bool {
-	args, err := errhandlers.RetriableErrHadlerRV(func() ([]interface{}, error) {
+	args, err := errhandlers.RetriableErrHadler(func() ([]interface{}, error) {
 		rows, err := db.DB.Query("SELECT * FROM GaugeMetrics WHERE ID = $1", name)
 		if err != nil {
 			return []interface{}{nil}, err
@@ -71,7 +71,7 @@ func (db MyDB) IsGaugeAllowed(name string) bool {
 }
 
 func (db MyDB) IsCounterAllowed(name string) bool {
-	rows, err := errhandlers.RetriableErrHadlerRV(func() (*sql.Rows, error) {
+	rows, err := errhandlers.RetriableErrHadler(func() (*sql.Rows, error) {
 		return db.DB.Query("SELECT * FROM CounterMetrics WHERE ID = $1", name)
 	}, errhandlers.CompareErrSQL)
 	if err != nil {
@@ -104,7 +104,7 @@ func (db MyDB) IsNameAllowed(mType, name string) bool {
 }
 
 func (db MyDB) AddGauge(name string, val metrics.Gauge) {
-	err := errhandlers.RetriableErrHadler(func() error {
+	err := errhandlers.RetriableErrHadlerVoid(func() error {
 		_, err := db.DB.Exec(`
 		INSERT INTO GaugeMetrics (ID, Value)
         VALUES ($1, $2)
@@ -120,7 +120,7 @@ func (db MyDB) AddGauge(name string, val metrics.Gauge) {
 }
 
 func (db MyDB) AddCounter(name string, val metrics.Counter) {
-	err := errhandlers.RetriableErrHadler(func() error {
+	err := errhandlers.RetriableErrHadlerVoid(func() error {
 		_, err := db.DB.Exec(`
 		INSERT INTO CounterMetrics (ID, Value)
         VALUES ($1, $2)
@@ -176,7 +176,7 @@ func (db MyDB) GetCounterValue(name string) (metrics.Counter, bool) {
 }
 
 func AddCounterTx(tx *sql.Tx, name string, val metrics.Counter) {
-	err := errhandlers.RetriableErrHadler(func() error {
+	err := errhandlers.RetriableErrHadlerVoid(func() error {
 		_, err := tx.Exec(`
 		INSERT INTO CounterMetrics (ID, Value)
         VALUES ($1, $2)
@@ -195,7 +195,7 @@ func AddCounterTx(tx *sql.Tx, name string, val metrics.Counter) {
 }
 
 func AddGaugeTx(tx *sql.Tx, name string, val metrics.Gauge) {
-	err := errhandlers.RetriableErrHadler(func() error {
+	err := errhandlers.RetriableErrHadlerVoid(func() error {
 		_, err := tx.Exec(`
 		INSERT INTO GaugeMetrics (ID, Value)
         VALUES ($1, $2)
@@ -214,7 +214,7 @@ func AddGaugeTx(tx *sql.Tx, name string, val metrics.Gauge) {
 }
 
 func ExecQuery(stmt *sql.Stmt, args ...interface{}) {
-	err := errhandlers.RetriableErrHadler(func() error {
+	err := errhandlers.RetriableErrHadlerVoid(func() error {
 		_, err := stmt.Exec(args...)
 		return err
 	}, errhandlers.CompareErrSQL)
@@ -226,7 +226,7 @@ func ExecQuery(stmt *sql.Stmt, args ...interface{}) {
 func (db MyDB) Update(memStats *runtime.MemStats) {
 	runtime.ReadMemStats(memStats)
 
-	tx, err := errhandlers.RetriableErrHadlerRV(func() (*sql.Tx, error) {
+	tx, err := errhandlers.RetriableErrHadler(func() (*sql.Tx, error) {
 		return db.DB.Begin()
 	}, errhandlers.CompareErrSQL)
 	if err != nil {
@@ -237,7 +237,7 @@ func (db MyDB) Update(memStats *runtime.MemStats) {
 		return
 	}
 
-	stmt, err := errhandlers.RetriableErrHadlerRV(func() (*sql.Stmt, error) {
+	stmt, err := errhandlers.RetriableErrHadler(func() (*sql.Stmt, error) {
 		return tx.Prepare(`INSERT INTO GaugeMetrics (ID, Value)
         VALUES ($1, $2)
         ON CONFLICT (ID)
@@ -283,7 +283,7 @@ func (db MyDB) Update(memStats *runtime.MemStats) {
 	ExecQuery(stmt, "RandomValue", metrics.Gauge(rand.Float64()))
 	AddCounterTx(tx, "PollCount", metrics.Counter(1))
 
-	err = errhandlers.RetriableErrHadler(func() error {
+	err = errhandlers.RetriableErrHadlerVoid(func() error {
 		return tx.Commit()
 	}, errhandlers.CompareErrSQL)
 	if err != nil {
@@ -292,7 +292,7 @@ func (db MyDB) Update(memStats *runtime.MemStats) {
 }
 
 func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
-	rowsGauge, err := errhandlers.RetriableErrHadlerRV(func() (*sql.Rows, error) {
+	rowsGauge, err := errhandlers.RetriableErrHadler(func() (*sql.Rows, error) {
 		return db.DB.Query("SELECT ID, Value FROM GaugeMetrics")
 	}, errhandlers.CompareErrSQL)
 	if err != nil {
@@ -320,7 +320,7 @@ func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 		f(name, metrics.GaugeName, valueGauge)
 	}
 
-	rowsCounter, err := errhandlers.RetriableErrHadlerRV(func() (*sql.Rows, error) {
+	rowsCounter, err := errhandlers.RetriableErrHadler(func() (*sql.Rows, error) {
 		return db.DB.Query("SELECT ID, Value FROM CounterMetrics")
 	}, errhandlers.CompareErrSQL)
 	if err != nil {
@@ -348,10 +348,10 @@ func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 	}
 }
 
-//----------------------sex----------------------  //SEX
+//SEX
 
 func (db MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
-	tx, err := errhandlers.RetriableErrHadlerRV(func() (*sql.Tx, error) {
+	tx, err := errhandlers.RetriableErrHadler(func() (*sql.Tx, error) {
 		return db.DB.Begin()
 	}, errhandlers.CompareErrSQL)
 	if err != nil {
@@ -370,7 +370,7 @@ func (db MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
 		}
 	}
 
-	err = errhandlers.RetriableErrHadler(func() error {
+	err = errhandlers.RetriableErrHadlerVoid(func() error {
 		return tx.Commit()
 	}, errhandlers.CompareErrSQL)
 	if err != nil {

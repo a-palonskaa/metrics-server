@@ -50,7 +50,7 @@ func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) e
 
 func MakeSendMetricsFunc(client *resty.Client, endpointAddr string) func() {
 	return func() {
-		err := errhandler.RetriableErrHadler(
+		err := errhandler.RetriableErrHadlerVoid(
 			func() error {
 				var metric metrics.Metrics
 				var body []metrics.Metrics
