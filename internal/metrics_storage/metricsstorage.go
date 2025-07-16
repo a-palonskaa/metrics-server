@@ -1,6 +1,7 @@
 package metricsstorage
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -10,16 +11,16 @@ import (
 )
 
 type MemStorage interface {
-	IsGaugeAllowed(name string) bool
-	IsCounterAllowed(name string) bool
-	IsNameAllowed(mType, name string) bool
-	AddGauge(name string, val metrics.Gauge)
-	AddCounter(name string, val metrics.Counter)
-	GetGaugeValue(name string) (metrics.Gauge, bool)
-	GetCounterValue(name string) (metrics.Counter, bool)
-	Update(memStats *runtime.MemStats)
-	Iterate(f func(string, string, fmt.Stringer))
-	AddMetricsToStorage(metrics *metrics.MetricsS) int
+	IsGaugeAllowed(ctx context.Context, name string) bool
+	IsCounterAllowed(ctx context.Context, name string) bool
+	IsNameAllowed(ctx context.Context, mType, name string) bool
+	AddGauge(ctx context.Context, name string, val metrics.Gauge)
+	AddCounter(ctx context.Context, name string, val metrics.Counter)
+	GetGaugeValue(ctx context.Context, name string) (metrics.Gauge, bool)
+	GetCounterValue(ctx context.Context, name string) (metrics.Counter, bool)
+	Update(ctx context.Context, memStats *runtime.MemStats)
+	Iterate(ctx context.Context, f func(string, string, fmt.Stringer))
+	AddMetricsToStorage(ctx context.Context, metrics *metrics.MetricsS) int
 }
 
 //easyjson:json
@@ -45,75 +46,75 @@ var MS = &MetricsStorage{
 	AllowedCounterNames: map[string]bool{"PollCount": true},
 }
 
-func (m *MetricsStorage) IsGaugeAllowed(name string) bool {
+func (m *MetricsStorage) IsGaugeAllowed(_ context.Context, name string) bool {
 	return m.AllowedGaugeNames[name]
 }
 
-func (m *MetricsStorage) IsCounterAllowed(name string) bool {
+func (m *MetricsStorage) IsCounterAllowed(_ context.Context, name string) bool {
 	return m.AllowedCounterNames[name]
 }
 
-func (m *MetricsStorage) IsNameAllowed(mType, name string) bool {
+func (m *MetricsStorage) IsNameAllowed(_ context.Context, mType, name string) bool {
 	switch mType {
 	case metrics.GaugeName:
-		return m.IsGaugeAllowed(name)
+		return m.IsGaugeAllowed(context.TODO(), name)
 	case metrics.CounterName:
-		return m.IsCounterAllowed(name)
+		return m.IsCounterAllowed(context.TODO(), name)
 	}
 	return false
 }
 
-func (m *MetricsStorage) AddGauge(name string, val metrics.Gauge) {
-	if !m.IsGaugeAllowed(name) {
+func (m *MetricsStorage) AddGauge(_ context.Context, name string, val metrics.Gauge) {
+	if !m.IsGaugeAllowed(context.TODO(), name) {
 		m.AllowedGaugeNames[name] = true
 	}
 	m.GaugeMetrics[name] = val
 }
 
-func (m *MetricsStorage) AddCounter(name string, val metrics.Counter) {
-	if !m.IsCounterAllowed(name) {
+func (m *MetricsStorage) AddCounter(_ context.Context, name string, val metrics.Counter) {
+	if !m.IsCounterAllowed(context.TODO(), name) {
 		m.AllowedCounterNames[name] = true
 	}
 	m.CounterMetrics[name] += val
 }
 
-func (m *MetricsStorage) AddValue(mType, name string, val any) bool {
+func (m *MetricsStorage) AddValue(_ context.Context, mType, name string, val any) bool {
 	switch mType {
 	case metrics.GaugeName:
 		if v, ok := val.(metrics.Gauge); ok {
-			m.AddGauge(name, v)
+			m.AddGauge(context.TODO(), name, v)
 			return true
 		}
 	case metrics.CounterName:
 		if v, ok := val.(metrics.Counter); ok {
-			m.AddCounter(name, v)
+			m.AddCounter(context.TODO(), name, v)
 			return true
 		}
 	}
 	return false
 }
 
-func (m *MetricsStorage) GetGaugeValue(name string) (metrics.Gauge, bool) {
-	if m.IsGaugeAllowed(name) {
+func (m *MetricsStorage) GetGaugeValue(_ context.Context, name string) (metrics.Gauge, bool) {
+	if m.IsGaugeAllowed(context.TODO(), name) {
 		return m.GaugeMetrics[name], true
 	}
 	return 0, false
 }
 
-func (m *MetricsStorage) GetCounterValue(name string) (metrics.Counter, bool) {
-	if m.IsCounterAllowed(name) {
+func (m *MetricsStorage) GetCounterValue(_ context.Context, name string) (metrics.Counter, bool) {
+	if m.IsCounterAllowed(context.TODO(), name) {
 		return m.CounterMetrics[name], true
 	}
 	return 0, false
 }
 
-func (m *MetricsStorage) GetValue(mType, name string) (any, bool) {
+func (m *MetricsStorage) GetValue(_ context.Context, mType, name string) (any, bool) {
 	switch mType {
 	case metrics.GaugeName:
-		val, ok := m.GetGaugeValue(name)
+		val, ok := m.GetGaugeValue(context.TODO(), name)
 		return val, ok
 	case metrics.CounterName:
-		val, ok := m.GetCounterValue(name)
+		val, ok := m.GetCounterValue(context.TODO(), name)
 		return val, ok
 	default:
 		return nil, false
@@ -124,7 +125,7 @@ func IsTypeAllowed(mType string) bool {
 	return mType == metrics.GaugeName || mType == metrics.CounterName
 }
 
-func (m *MetricsStorage) Update(memStats *runtime.MemStats) {
+func (m *MetricsStorage) Update(_ context.Context, memStats *runtime.MemStats) {
 	runtime.ReadMemStats(memStats)
 
 	// gauge metrics
@@ -161,7 +162,7 @@ func (m *MetricsStorage) Update(memStats *runtime.MemStats) {
 	m.CounterMetrics["PollCount"]++
 }
 
-func (m *MetricsStorage) Iterate(f func(string, string, fmt.Stringer)) {
+func (m *MetricsStorage) Iterate(_ context.Context, f func(string, string, fmt.Stringer)) {
 	for key, value := range m.GaugeMetrics {
 		f(key, metrics.GaugeName, value)
 	}
@@ -171,13 +172,13 @@ func (m *MetricsStorage) Iterate(f func(string, string, fmt.Stringer)) {
 	}
 }
 
-func (m *MetricsStorage) AddMetricsToStorage(mt *metrics.MetricsS) int {
+func (m *MetricsStorage) AddMetricsToStorage(_ context.Context, mt *metrics.MetricsS) int {
 	for _, metric := range *mt {
 		switch metric.MType {
 		case "gauge":
-			m.AddGauge(metric.ID, metrics.Gauge(*metric.Value))
+			m.AddGauge(context.TODO(), metric.ID, metrics.Gauge(*metric.Value))
 		case "counter":
-			m.AddCounter(metric.ID, metrics.Counter(*metric.Delta))
+			m.AddCounter(context.TODO(), metric.ID, metrics.Counter(*metric.Delta))
 		default:
 			return http.StatusBadRequest
 		}

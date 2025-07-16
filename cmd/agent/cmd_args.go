@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"runtime"
 	"time"
 
@@ -47,17 +48,18 @@ var Cmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		memStats := &runtime.MemStats{}
 		client := resty.New()
+		ctx := context.Background()
 
 		tickerUpdate := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
 		defer tickerUpdate.Stop()
 		tickerSend := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
 		defer tickerSend.Stop()
 
-		sendMetrics := agent_handler.MakeSendMetricsFunc(client, Flags.EndpointAddr)
+		sendMetrics := agent_handler.MakeSendMetricsFunc(ctx, client, Flags.EndpointAddr)
 		for {
 			select {
 			case <-tickerUpdate.C:
-				memstorage.MS.Update(memStats)
+				memstorage.MS.Update(ctx, memStats)
 			case <-tickerSend.C:
 				sendMetrics()
 			}

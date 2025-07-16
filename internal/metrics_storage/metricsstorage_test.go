@@ -1,6 +1,7 @@
 package metricsstorage
 
 import (
+	"context"
 	"testing"
 
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
@@ -98,7 +99,7 @@ func TestMemStorage_AddGauge(t *testing.T) {
 				AllowedGaugeNames:   make(map[string]bool),
 				AllowedCounterNames: make(map[string]bool),
 			}
-			ms.AddGauge(tt.args.name, tt.args.val)
+			ms.AddGauge(context.TODO(), tt.args.name, tt.args.val)
 		})
 	}
 }
@@ -192,7 +193,7 @@ func TestMemStorage_AddCounter(t *testing.T) {
 				AllowedGaugeNames:   make(map[string]bool),
 				AllowedCounterNames: make(map[string]bool),
 			}
-			ms.AddCounter(tt.args.name, tt.args.val)
+			ms.AddCounter(context.TODO(), tt.args.name, tt.args.val)
 		})
 	}
 }

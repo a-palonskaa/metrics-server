@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
@@ -48,13 +49,13 @@ func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) e
 	return nil
 }
 
-func MakeSendMetricsFunc(client *resty.Client, endpointAddr string) func() {
+func MakeSendMetricsFunc(ctx context.Context, client *resty.Client, endpointAddr string) func() {
 	return func() {
 		err := errhandler.RetriableErrHadlerVoid(
 			func() error {
 				var metric metrics.Metrics
 				var body []metrics.Metrics
-				memstorage.MS.Iterate(func(key string, mType string, val fmt.Stringer) {
+				memstorage.MS.Iterate(ctx, func(key string, mType string, val fmt.Stringer) {
 					metric.ID = key
 					metric.MType = mType
 					switch mType {
