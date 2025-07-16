@@ -55,7 +55,7 @@ var cmd = &cobra.Command{
 		var ms memstorage.MemStorage
 		var db *sql.DB
 
-		db, err := errhandlers.RetriableErrHadlerRV(
+		db, err := errhandlers.RetriableErrHadler(
 			func() (*sql.DB, error) { return sql.Open("pgx", Flags.DatabaseAddr) },
 			errhandlers.CompareErrSQL,
 		)
@@ -69,7 +69,9 @@ var cmd = &cobra.Command{
 		}()
 
 		if Flags.DatabaseAddr != "" {
-			err = errhandlers.RetriableErrHadler(func() error { return database.CreateTables(db) }, errhandlers.CompareErrSQL)
+			err = errhandlers.RetriableErrHadlerVoid(
+				func() error { return database.CreateTables(db) },
+				errhandlers.CompareErrSQL)
 			if err != nil {
 				log.Fatal().Err(err)
 			}
