@@ -48,18 +48,12 @@ var Cmd = &cobra.Command{
 		memStats := &runtime.MemStats{}
 		client := resty.New()
 
-		backoffScedule := []time.Duration{
-			100 * time.Millisecond,
-			500 * time.Millisecond,
-			1 * time.Second,
-		}
-
 		tickerUpdate := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
 		defer tickerUpdate.Stop()
 		tickerSend := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
 		defer tickerSend.Stop()
 
-		sendMetrics := agent_handler.MakeSendMetricsFunc(client, Flags.EndpointAddr, backoffScedule)
+		sendMetrics := agent_handler.MakeSendMetricsFunc(client, Flags.EndpointAddr)
 		for {
 			select {
 			case <-tickerUpdate.C:
