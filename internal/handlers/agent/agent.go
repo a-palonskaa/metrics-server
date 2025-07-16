@@ -26,9 +26,11 @@ func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) e
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	if _, err := gz.Write(jsonData); err != nil {
+		log.Error().Err(err)
 		return err
 	}
 	if err := gz.Close(); err != nil {
+		log.Error().Err(err)
 		return err
 	}
 
@@ -36,21 +38,22 @@ func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) e
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept-Encoding", "gzip").
 		SetHeader("Content-Encoding", "gzip").
-		SetBody(buf).
+		SetBody(buf.Bytes()).
 		Post("/updates/")
 	if err != nil {
 		log.Error().Err(err).Msg("failed to send request")
 		return err
 	}
+	log.Info().Msgf("sent metrics to server, %s", "http://"+endpoint+"/updates/")
 	return nil
 }
 
 func MakeSendMetricsFunc(client *resty.Client, endpointAddr string) func() {
 	return func() {
 		var metric metrics.Metrics
-		var body []metrics.Metrics
 		err := errhandler.RetriableErrHadler(
 			func() error {
+				var body []metrics.Metrics
 				memstorage.MS.Iterate(func(key string, mType string, val fmt.Stringer) {
 					metric.ID = key
 					metric.MType = mType

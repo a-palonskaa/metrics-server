@@ -163,6 +163,7 @@ func PostJSONUpdateHandler(ms memstorage.MemStorage) http.HandlerFunc {
 
 func PostJSONUpdatesHandler(ms memstorage.MemStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		log.Info().Msg("updates request")
 		contentType := req.Header.Get("Content-Type")
 		if contentType != "application/json" {
 			log.Error().Msg("JSON format is required")
