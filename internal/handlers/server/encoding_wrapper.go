@@ -49,6 +49,6 @@ func WithCompression(fn http.Handler) http.Handler {
 			}
 		}()
 		w.Header().Set("Content-Encoding", "gzip")
-		fn.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r
+		fn.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
 	})
 }
