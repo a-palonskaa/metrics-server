@@ -44,6 +44,12 @@ func CreateTables(db *sql.DB) error {
 func (db MyDB) IsGaugeAllowed(name string) bool {
 	args, err := errhandlers.RetriableErrHadlerRV(func() ([]interface{}, error) {
 		rows, err := db.DB.Query("SELECT * FROM GaugeMetrics WHERE ID = $1", name)
+		if err != nil {
+			return []interface{}{nil}, err
+		}
+		if err = rows.Err(); err != nil {
+			log.Error().Err(err)
+		}
 		return []interface{}{rows}, err
 	}, errhandlers.CompareErrSQL)
 	rows, _ := args[0].(*sql.Rows)
@@ -67,6 +73,12 @@ func (db MyDB) IsGaugeAllowed(name string) bool {
 func (db MyDB) IsCounterAllowed(name string) bool {
 	args, err := errhandlers.RetriableErrHadlerRV(func() ([]interface{}, error) {
 		rows, err := db.DB.Query("SELECT * FROM CounterMetrics WHERE ID = $1", name)
+		if err != nil {
+			return []interface{}{nil}, err
+		}
+		if err = rows.Err(); err != nil {
+			log.Error().Err(err)
+		}
 		return []interface{}{rows}, err
 	}, errhandlers.CompareErrSQL)
 	rows, _ := args[0].(*sql.Rows)
@@ -292,6 +304,12 @@ func (db MyDB) Update(memStats *runtime.MemStats) {
 func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 	args, err := errhandlers.RetriableErrHadlerRV(func() ([]interface{}, error) {
 		rowsGauge, err := db.DB.Query("SELECT ID, Value FROM GaugeMetrics")
+		if err != nil {
+			return []interface{}{nil}, err
+		}
+		if err = rowsGauge.Err(); err != nil {
+			log.Error().Err(err)
+		}
 		return []interface{}{rowsGauge}, err
 	}, errhandlers.CompareErrSQL)
 	rowsGauge, _ := args[0].(*sql.Rows)
@@ -321,6 +339,12 @@ func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 	}
 	args, err = errhandlers.RetriableErrHadlerRV(func() ([]interface{}, error) {
 		rowsCounter, err := db.DB.Query("SELECT ID, Value FROM CounterMetrics")
+		if err != nil {
+			return []interface{}{nil}, err
+		}
+		if err = rowsGauge.Err(); err != nil {
+			log.Error().Err(err)
+		}
 		return []interface{}{rowsCounter}, err
 	}, errhandlers.CompareErrSQL)
 	rowsCounter, _ := args[0].(*sql.Rows)
