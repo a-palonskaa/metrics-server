@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math/rand"
@@ -41,9 +42,9 @@ func CreateTables(db *sql.DB) error {
 
 //----------------------mem-storage interface----------------------
 
-func (db MyDB) IsGaugeAllowed(name string) bool {
+func (db MyDB) IsGaugeAllowed(ctx context.Context, name string) bool {
 	args, err := errhandlers.RetriableErrHadler(func() ([]interface{}, error) {
-		rows, err := db.DB.Query("SELECT * FROM GaugeMetrics WHERE ID = $1", name)
+		rows, err := db.DB.QueryContext(ctx, "SELECT * FROM GaugeMetrics WHERE ID = $1", name)
 		if err != nil {
 			return []interface{}{nil}, err
 		}
@@ -70,9 +71,9 @@ func (db MyDB) IsGaugeAllowed(name string) bool {
 	return true
 }
 
-func (db MyDB) IsCounterAllowed(name string) bool {
+func (db MyDB) IsCounterAllowed(ctx context.Context, name string) bool {
 	rows, err := errhandlers.RetriableErrHadler(func() (*sql.Rows, error) {
-		return db.DB.Query("SELECT * FROM CounterMetrics WHERE ID = $1", name)
+		return db.DB.QueryContext(ctx, "SELECT * FROM CounterMetrics WHERE ID = $1", name)
 	}, errhandlers.CompareErrSQL)
 	if err != nil {
 		log.Error().Err(err)
@@ -91,21 +92,21 @@ func (db MyDB) IsCounterAllowed(name string) bool {
 	return true
 }
 
-func (db MyDB) IsNameAllowed(mType, name string) bool {
+func (db MyDB) IsNameAllowed(ctx context.Context, mType, name string) bool {
 	switch mType {
 	case metrics.GaugeName:
-		return db.IsGaugeAllowed(name)
+		return db.IsGaugeAllowed(ctx, name)
 	case metrics.CounterName:
-		return db.IsCounterAllowed(name)
+		return db.IsCounterAllowed(ctx, name)
 	default:
 		log.Error().Msgf("unallowed type %s", mType)
 		return false
 	}
 }
 
-func (db MyDB) AddGauge(name string, val metrics.Gauge) {
+func (db MyDB) AddGauge(ctx context.Context, name string, val metrics.Gauge) {
 	err := errhandlers.RetriableErrHadlerVoid(func() error {
-		_, err := db.DB.Exec(`
+		_, err := db.DB.ExecContext(ctx, `
 		INSERT INTO GaugeMetrics (ID, Value)
         VALUES ($1, $2)
         ON CONFLICT (ID)
@@ -119,9 +120,9 @@ func (db MyDB) AddGauge(name string, val metrics.Gauge) {
 	}
 }
 
-func (db MyDB) AddCounter(name string, val metrics.Counter) {
+func (db MyDB) AddCounter(ctx context.Context, name string, val metrics.Counter) {
 	err := errhandlers.RetriableErrHadlerVoid(func() error {
-		_, err := db.DB.Exec(`
+		_, err := db.DB.ExecContext(ctx, `
 		INSERT INTO CounterMetrics (ID, Value)
         VALUES ($1, $2)
         ON CONFLICT (ID)
@@ -135,8 +136,8 @@ func (db MyDB) AddCounter(name string, val metrics.Counter) {
 	}
 }
 
-func (db MyDB) GetGaugeValue(name string) (metrics.Gauge, bool) {
-	row := db.DB.QueryRow("SELECT Value FROM GaugeMetrics WHERE ID = $1", name)
+func (db MyDB) GetGaugeValue(ctx context.Context, name string) (metrics.Gauge, bool) {
+	row := db.DB.QueryRowContext(ctx, "SELECT Value FROM GaugeMetrics WHERE ID = $1", name)
 	if row == nil {
 		log.Info().Msgf("no gauge val with name %s found", name)
 		return metrics.Gauge(0), false
@@ -155,8 +156,8 @@ func (db MyDB) GetGaugeValue(name string) (metrics.Gauge, bool) {
 	return metrics.Gauge(valueGauge), true
 }
 
-func (db MyDB) GetCounterValue(name string) (metrics.Counter, bool) {
-	row := db.DB.QueryRow("SELECT Value FROM CounterMetrics WHERE ID = $1", name)
+func (db MyDB) GetCounterValue(ctx context.Context, name string) (metrics.Counter, bool) {
+	row := db.DB.QueryRowContext(ctx, "SELECT Value FROM CounterMetrics WHERE ID = $1", name)
 	if row == nil {
 		log.Info().Msgf("no counter val with name %s found", name)
 		return metrics.Counter(0), false
@@ -175,9 +176,9 @@ func (db MyDB) GetCounterValue(name string) (metrics.Counter, bool) {
 	return metrics.Counter(valueCounter), true
 }
 
-func AddCounterTx(tx *sql.Tx, name string, val metrics.Counter) {
+func AddCounterTx(ctx context.Context, tx *sql.Tx, name string, val metrics.Counter) {
 	err := errhandlers.RetriableErrHadlerVoid(func() error {
-		_, err := tx.Exec(`
+		_, err := tx.ExecContext(ctx, `
 		INSERT INTO CounterMetrics (ID, Value)
         VALUES ($1, $2)
         ON CONFLICT (ID)
@@ -194,9 +195,9 @@ func AddCounterTx(tx *sql.Tx, name string, val metrics.Counter) {
 	}
 }
 
-func AddGaugeTx(tx *sql.Tx, name string, val metrics.Gauge) {
+func AddGaugeTx(ctx context.Context, tx *sql.Tx, name string, val metrics.Gauge) {
 	err := errhandlers.RetriableErrHadlerVoid(func() error {
-		_, err := tx.Exec(`
+		_, err := tx.ExecContext(ctx, `
 		INSERT INTO GaugeMetrics (ID, Value)
         VALUES ($1, $2)
         ON CONFLICT (ID)
@@ -213,9 +214,9 @@ func AddGaugeTx(tx *sql.Tx, name string, val metrics.Gauge) {
 	}
 }
 
-func ExecQuery(stmt *sql.Stmt, args ...interface{}) {
+func ExecQuery(ctx context.Context, stmt *sql.Stmt, args ...interface{}) {
 	err := errhandlers.RetriableErrHadlerVoid(func() error {
-		_, err := stmt.Exec(args...)
+		_, err := stmt.ExecContext(ctx, args...)
 		return err
 	}, errhandlers.CompareErrSQL)
 	if err != nil {
@@ -223,7 +224,7 @@ func ExecQuery(stmt *sql.Stmt, args ...interface{}) {
 	}
 }
 
-func (db MyDB) Update(memStats *runtime.MemStats) {
+func (db MyDB) Update(ctx context.Context, memStats *runtime.MemStats) {
 	runtime.ReadMemStats(memStats)
 
 	tx, err := errhandlers.RetriableErrHadler(func() (*sql.Tx, error) {
@@ -238,7 +239,7 @@ func (db MyDB) Update(memStats *runtime.MemStats) {
 	}
 
 	stmt, err := errhandlers.RetriableErrHadler(func() (*sql.Stmt, error) {
-		return tx.Prepare(`INSERT INTO GaugeMetrics (ID, Value)
+		return tx.PrepareContext(ctx, `INSERT INTO GaugeMetrics (ID, Value)
         VALUES ($1, $2)
         ON CONFLICT (ID)
         DO UPDATE SET Value = EXCLUDED.Value`)
@@ -253,35 +254,35 @@ func (db MyDB) Update(memStats *runtime.MemStats) {
 		}
 	}()
 
-	ExecQuery(stmt, "Alloc", metrics.Gauge(memStats.Alloc))
-	ExecQuery(stmt, "BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
-	ExecQuery(stmt, "Frees", metrics.Gauge(memStats.Frees))
-	ExecQuery(stmt, "GCCPUFraction", metrics.Gauge(memStats.GCCPUFraction))
-	ExecQuery(stmt, "GCSys", metrics.Gauge(memStats.GCSys))
-	ExecQuery(stmt, "HeapAlloc", metrics.Gauge(memStats.HeapAlloc))
-	ExecQuery(stmt, "HeapIdle", metrics.Gauge(memStats.HeapIdle))
-	ExecQuery(stmt, "HeapInuse", metrics.Gauge(memStats.HeapInuse))
-	ExecQuery(stmt, "HeapObjects", metrics.Gauge(memStats.HeapObjects))
-	ExecQuery(stmt, "HeapReleased", metrics.Gauge(memStats.HeapReleased))
-	ExecQuery(stmt, "LastGC", metrics.Gauge(memStats.LastGC))
-	ExecQuery(stmt, "Lookups", metrics.Gauge(memStats.Lookups))
-	ExecQuery(stmt, "MCacheInuse", metrics.Gauge(memStats.MCacheInuse))
-	ExecQuery(stmt, "MCacheSys", metrics.Gauge(memStats.MCacheSys))
-	ExecQuery(stmt, "MSpanInuse", metrics.Gauge(memStats.MSpanInuse))
-	ExecQuery(stmt, "MSpanSys", metrics.Gauge(memStats.MSpanSys))
-	ExecQuery(stmt, "Mallocs", metrics.Gauge(memStats.Mallocs))
-	ExecQuery(stmt, "NextGC", metrics.Gauge(memStats.NextGC))
-	ExecQuery(stmt, "NumForcedGC", metrics.Gauge(memStats.NumForcedGC))
-	ExecQuery(stmt, "NumGC", metrics.Gauge(memStats.NumGC))
-	ExecQuery(stmt, "OtherSys", metrics.Gauge(memStats.OtherSys))
-	ExecQuery(stmt, "PauseTotalNs", metrics.Gauge(memStats.PauseTotalNs))
-	ExecQuery(stmt, "StackInuse", metrics.Gauge(memStats.StackInuse))
-	ExecQuery(stmt, "StackSys", metrics.Gauge(memStats.StackSys))
-	ExecQuery(stmt, "Sys", metrics.Gauge(memStats.Sys))
-	ExecQuery(stmt, "TotalAlloc", metrics.Gauge(memStats.TotalAlloc))
-	ExecQuery(stmt, "HeapSys", metrics.Gauge(memStats.HeapSys))
-	ExecQuery(stmt, "RandomValue", metrics.Gauge(rand.Float64()))
-	AddCounterTx(tx, "PollCount", metrics.Counter(1))
+	ExecQuery(ctx, stmt, "Alloc", metrics.Gauge(memStats.Alloc))
+	ExecQuery(ctx, stmt, "BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
+	ExecQuery(ctx, stmt, "Frees", metrics.Gauge(memStats.Frees))
+	ExecQuery(ctx, stmt, "GCCPUFraction", metrics.Gauge(memStats.GCCPUFraction))
+	ExecQuery(ctx, stmt, "GCSys", metrics.Gauge(memStats.GCSys))
+	ExecQuery(ctx, stmt, "HeapAlloc", metrics.Gauge(memStats.HeapAlloc))
+	ExecQuery(ctx, stmt, "HeapIdle", metrics.Gauge(memStats.HeapIdle))
+	ExecQuery(ctx, stmt, "HeapInuse", metrics.Gauge(memStats.HeapInuse))
+	ExecQuery(ctx, stmt, "HeapObjects", metrics.Gauge(memStats.HeapObjects))
+	ExecQuery(ctx, stmt, "HeapReleased", metrics.Gauge(memStats.HeapReleased))
+	ExecQuery(ctx, stmt, "LastGC", metrics.Gauge(memStats.LastGC))
+	ExecQuery(ctx, stmt, "Lookups", metrics.Gauge(memStats.Lookups))
+	ExecQuery(ctx, stmt, "MCacheInuse", metrics.Gauge(memStats.MCacheInuse))
+	ExecQuery(ctx, stmt, "MCacheSys", metrics.Gauge(memStats.MCacheSys))
+	ExecQuery(ctx, stmt, "MSpanInuse", metrics.Gauge(memStats.MSpanInuse))
+	ExecQuery(ctx, stmt, "MSpanSys", metrics.Gauge(memStats.MSpanSys))
+	ExecQuery(ctx, stmt, "Mallocs", metrics.Gauge(memStats.Mallocs))
+	ExecQuery(ctx, stmt, "NextGC", metrics.Gauge(memStats.NextGC))
+	ExecQuery(ctx, stmt, "NumForcedGC", metrics.Gauge(memStats.NumForcedGC))
+	ExecQuery(ctx, stmt, "NumGC", metrics.Gauge(memStats.NumGC))
+	ExecQuery(ctx, stmt, "OtherSys", metrics.Gauge(memStats.OtherSys))
+	ExecQuery(ctx, stmt, "PauseTotalNs", metrics.Gauge(memStats.PauseTotalNs))
+	ExecQuery(ctx, stmt, "StackInuse", metrics.Gauge(memStats.StackInuse))
+	ExecQuery(ctx, stmt, "StackSys", metrics.Gauge(memStats.StackSys))
+	ExecQuery(ctx, stmt, "Sys", metrics.Gauge(memStats.Sys))
+	ExecQuery(ctx, stmt, "TotalAlloc", metrics.Gauge(memStats.TotalAlloc))
+	ExecQuery(ctx, stmt, "HeapSys", metrics.Gauge(memStats.HeapSys))
+	ExecQuery(ctx, stmt, "RandomValue", metrics.Gauge(rand.Float64()))
+	AddCounterTx(ctx, tx, "PollCount", metrics.Counter(1))
 
 	err = errhandlers.RetriableErrHadlerVoid(func() error {
 		return tx.Commit()
@@ -291,9 +292,9 @@ func (db MyDB) Update(memStats *runtime.MemStats) {
 	}
 }
 
-func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
+func (db MyDB) Iterate(ctx context.Context, f func(string, string, fmt.Stringer)) {
 	rowsGauge, err := errhandlers.RetriableErrHadler(func() (*sql.Rows, error) {
-		return db.DB.Query("SELECT ID, Value FROM GaugeMetrics")
+		return db.DB.QueryContext(ctx, "SELECT ID, Value FROM GaugeMetrics")
 	}, errhandlers.CompareErrSQL)
 	if err != nil {
 		log.Error().Err(err)
@@ -321,7 +322,7 @@ func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 	}
 
 	rowsCounter, err := errhandlers.RetriableErrHadler(func() (*sql.Rows, error) {
-		return db.DB.Query("SELECT ID, Value FROM CounterMetrics")
+		return db.DB.QueryContext(ctx, "SELECT ID, Value FROM CounterMetrics")
 	}, errhandlers.CompareErrSQL)
 	if err != nil {
 		log.Error().Err(err)
@@ -350,7 +351,7 @@ func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 
 //SEX
 
-func (db MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
+func (db MyDB) AddMetricsToStorage(ctx context.Context, mt *metrics.MetricsS) int {
 	tx, err := errhandlers.RetriableErrHadler(func() (*sql.Tx, error) {
 		return db.DB.Begin()
 	}, errhandlers.CompareErrSQL)
@@ -362,9 +363,9 @@ func (db MyDB) AddMetricsToStorage(mt *metrics.MetricsS) int {
 	for _, metric := range *mt {
 		switch metric.MType {
 		case "gauge":
-			AddGaugeTx(tx, metric.ID, metrics.Gauge(*metric.Value))
+			AddGaugeTx(ctx, tx, metric.ID, metrics.Gauge(*metric.Value))
 		case "counter":
-			AddCounterTx(tx, metric.ID, metrics.Counter(*metric.Delta))
+			AddCounterTx(ctx, tx, metric.ID, metrics.Counter(*metric.Delta))
 		default:
 			return http.StatusBadRequest
 		}
