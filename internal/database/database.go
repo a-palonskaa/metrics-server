@@ -342,7 +342,7 @@ func (db MyDB) Iterate(f func(string, string, fmt.Stringer)) {
 		if err != nil {
 			return []interface{}{nil}, err
 		}
-		if err = rowsGauge.Err(); err != nil {
+		if err = rowsCounter.Err(); err != nil {
 			log.Error().Err(err)
 		}
 		return []interface{}{rowsCounter}, err
