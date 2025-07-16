@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/rs/zerolog/log"
 
+	errhandler "github.com/a-palonskaa/metrics-server/internal/err_handlers"
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
@@ -45,35 +45,35 @@ func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) e
 	return nil
 }
 
-func MakeSendMetricsFunc(client *resty.Client, endpointAddr string, backoffScedule []time.Duration) func() {
+func MakeSendMetricsFunc(client *resty.Client, endpointAddr string) func() {
 	return func() {
 		var metric metrics.Metrics
 		var body []metrics.Metrics
-		for _, backoff := range backoffScedule {
-			memstorage.MS.Iterate(func(key string, mType string, val fmt.Stringer) {
-				metric.ID = key
-				metric.MType = mType
-				switch mType {
-				case "gauge":
-					gVal, _ := val.(metrics.Gauge)
-					fVal := float64(gVal)
-					metric.Value = &fVal
-				case "counter":
-					cVal, _ := val.(metrics.Counter)
-					iVal := int64(cVal)
-					metric.Delta = &iVal
-				default:
-					log.Error().Msg("unknown type")
-					return
-				}
-				body = append(body, metric)
-			})
+		err := errhandler.RetriableErrHadler(
+			func() error {
+				memstorage.MS.Iterate(func(key string, mType string, val fmt.Stringer) {
+					metric.ID = key
+					metric.MType = mType
+					switch mType {
+					case "gauge":
+						gVal, _ := val.(metrics.Gauge)
+						fVal := float64(gVal)
+						metric.Value = &fVal
+					case "counter":
+						cVal, _ := val.(metrics.Counter)
+						iVal := int64(cVal)
+						metric.Delta = &iVal
+					default:
+						log.Error().Msg("unknown type")
+						return
+					}
+					body = append(body, metric)
+				})
 
-			if err := SendRequest(client, endpointAddr, metrics.MetricsS(body)); err != nil {
-				log.Error().Err(err)
-			}
-			time.Sleep(backoff)
+				return SendRequest(client, endpointAddr, metrics.MetricsS(body))
+			}, errhandler.CompareErrAgent)
+		if err != nil {
+			log.Error().Err(err).Msg("error sending metrics")
 		}
-
 	}
 }

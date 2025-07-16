@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	database "github.com/a-palonskaa/metrics-server/internal/database"
+	errhandlers "github.com/a-palonskaa/metrics-server/internal/err_handlers"
 	server_handler "github.com/a-palonskaa/metrics-server/internal/handlers/server"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
@@ -54,10 +55,16 @@ var cmd = &cobra.Command{
 		var ms memstorage.MemStorage
 		var db *sql.DB
 
-		db, err := sql.Open("pgx", Flags.DatabaseAddr)
-		log.Info().Msg(Flags.DatabaseAddr)
+		result, err := errhandlers.RetriableErrHadlerRV(
+			func() ([]interface{}, error) {
+				db, err := sql.Open("pgx", Flags.DatabaseAddr)
+				return []interface{}{db}, err
+			},
+			errhandlers.CompareErrSQL,
+		)
+		db, _ = result[0].(*sql.DB)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize *sql.DB and create a connection pull")
+			log.Fatal().Err(err).Msg("failed to initialize *sql.DB and create a connection pull")
 		}
 		defer func() {
 			if err := db.Close(); err != nil {
@@ -66,7 +73,8 @@ var cmd = &cobra.Command{
 		}()
 
 		if Flags.DatabaseAddr != "" {
-			if err := database.CreateTables(db); err != nil {
+			err = errhandlers.RetriableErrHadler(func() error { return database.CreateTables(db) }, errhandlers.CompareErrSQL)
+			if err != nil {
 				log.Fatal().Err(err)
 			}
 			var myDB database.MyDB
