@@ -241,12 +241,15 @@ func (db MyDB) Update(memStats *runtime.MemStats) {
 	tx, _ := args[0].(*sql.Tx)
 	if err != nil {
 		log.Error().Err(err)
+		if err := tx.Rollback(); err != nil {
+			log.Error().Err(err)
+		}
 		return
 	}
 
 	args, err = errhandlers.RetriableErrHadlerRV(func() ([]interface{}, error) {
 		stmt, err := tx.Prepare(`INSERT INTO GaugeMetrics (ID, Value)
-        VALUES (?, ?)
+        VALUES ($1, $2)
         ON CONFLICT (ID)
         DO UPDATE SET Value = EXCLUDED.Value`)
 		return []interface{}{stmt}, err
@@ -262,7 +265,6 @@ func (db MyDB) Update(memStats *runtime.MemStats) {
 		}
 	}()
 
-	ExecQuery(stmt, "Alloc", metrics.Gauge(memStats.Alloc))
 	ExecQuery(stmt, "Alloc", metrics.Gauge(memStats.Alloc))
 	ExecQuery(stmt, "BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
 	ExecQuery(stmt, "Frees", metrics.Gauge(memStats.Frees))

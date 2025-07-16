@@ -90,7 +90,7 @@ func PostJSONValueHandler(ms memstorage.MemStorage) http.HandlerFunc {
 
 		ms.Update(&runtime.MemStats{})
 		if message, status := getMetricValue(ms, &metric); status != http.StatusOK {
-			log.Error().Msg(message + req.RequestURI)
+			log.Error().Msg(message)
 			w.WriteHeader(status)
 			return
 		}
