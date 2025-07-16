@@ -11,7 +11,7 @@ import (
 
 // args ...interface{}
 // ХУЙНЯ
-func RetriableErrHadlerRV(f func() ([]interface{}, error), compare func(error) bool) ([]interface{}, error) {
+func RetriableErrHadlerRV[T any](f func() (T, error), compare func(error) bool) (T, error) {
 	backoffScedule := []time.Duration{
 		1 * time.Second,
 		3 * time.Second,
@@ -19,8 +19,8 @@ func RetriableErrHadlerRV(f func() ([]interface{}, error), compare func(error) b
 	}
 
 	var (
+		args T
 		err  error
-		args []interface{}
 	)
 
 	for _, backoff := range backoffScedule {
@@ -30,8 +30,7 @@ func RetriableErrHadlerRV(f func() ([]interface{}, error), compare func(error) b
 		}
 		log.Error().Err(err)
 
-		retry := compare(err)
-		if !retry {
+		if !compare(err) {
 			return args, err
 		}
 		time.Sleep(backoff)

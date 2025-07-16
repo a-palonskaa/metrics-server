@@ -55,14 +55,10 @@ var cmd = &cobra.Command{
 		var ms memstorage.MemStorage
 		var db *sql.DB
 
-		result, err := errhandlers.RetriableErrHadlerRV(
-			func() ([]interface{}, error) {
-				db, err := sql.Open("pgx", Flags.DatabaseAddr)
-				return []interface{}{db}, err
-			},
+		db, err := errhandlers.RetriableErrHadlerRV(
+			func() (*sql.DB, error) { return sql.Open("pgx", Flags.DatabaseAddr) },
 			errhandlers.CompareErrSQL,
 		)
-		db, _ = result[0].(*sql.DB)
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to initialize *sql.DB and create a connection pull")
 		}
