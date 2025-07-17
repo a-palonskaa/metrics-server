@@ -18,7 +18,6 @@ import (
 )
 
 //----------------------pots-request-handlers----------------------
-
 func PostHandler(w http.ResponseWriter, req *http.Request) {
 	mType := chi.URLParam(req, "mType")
 	name := chi.URLParam(req, "name")
@@ -122,7 +121,6 @@ func PostJSONUpdateHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 //----------------------get-request-handlers----------------------
-
 func GetHandler(w http.ResponseWriter, req *http.Request) {
 	mType := chi.URLParam(req, "mType")
 	name := chi.URLParam(req, "name")
