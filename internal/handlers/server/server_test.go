@@ -125,16 +125,7 @@ func TestPostHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	r.Route("/", func(r chi.Router) {
-		r.Get("/", RootGetHandler)
-		r.Route("/", func(r chi.Router) {
-			r.Post("/value/", PostJSONValueHandler)
-			r.Get("/value/", AllValueHandler)
-			r.Get("/value/{mType}/{name}", GetHandler)
-			r.Post("/update/", PostJSONUpdateHandler)
-			r.Post("/update/{mType}/{name}/{value}", PostHandler)
-		})
-	})
+	RouteRequests(r)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -228,16 +219,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	r.Route("/", func(r chi.Router) {
-		r.Get("/", RootGetHandler)
-		r.Route("/", func(r chi.Router) {
-			r.Post("/value/", PostJSONValueHandler)
-			r.Get("/value/", AllValueHandler)
-			r.Get("/value/{mType}/{name}", GetHandler)
-			r.Post("/update/", PostJSONUpdateHandler)
-			r.Post("/update/{mType}/{name}/{value}", PostHandler)
-		})
-	})
+	RouteRequests(r)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -284,16 +266,7 @@ func TestAllValueHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	r.Route("/", func(r chi.Router) {
-		r.Get("/", RootGetHandler)
-		r.Route("/", func(r chi.Router) {
-			r.Post("/value/", PostJSONValueHandler)
-			r.Get("/value/", AllValueHandler)
-			r.Get("/value/{mType}/{name}", GetHandler)
-			r.Post("/update/", PostJSONUpdateHandler)
-			r.Post("/update/{mType}/{name}/{value}", PostHandler)
-		})
-	})
+	RouteRequests(r)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

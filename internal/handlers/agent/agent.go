@@ -3,13 +3,14 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/rs/zerolog/log"
 
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
+	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
 func SendRequest(client *resty.Client, endpoint string, mType string, name string, val fmt.Stringer) error {
@@ -32,7 +33,7 @@ func SendRequest(client *resty.Client, endpoint string, mType string, name strin
 		return fmt.Errorf("unknown type %s", mType)
 	}
 
-	jsonData, err := json.Marshal(body)
+	jsonData, err := body.MarshalJSON()
 	if err != nil {
 		return err
 	}
@@ -57,4 +58,19 @@ func SendRequest(client *resty.Client, endpoint string, mType string, name strin
 		return err
 	}
 	return nil
+}
+
+func MakeSendMetricsFunc(client *resty.Client, endpointAddr string, backoffScedule []time.Duration) func() {
+	return func() {
+		memstorage.MS.Iterate(func(key string, mType string, val fmt.Stringer) {
+			for _, backoff := range backoffScedule {
+				err := SendRequest(client, endpointAddr, mType, key, val)
+				if err == nil {
+					break
+				}
+				log.Error().Msgf("error sending %s metric %s(%v): %v\n", mType, key, val, err)
+				time.Sleep(backoff)
+			}
+		})
+	}
 }

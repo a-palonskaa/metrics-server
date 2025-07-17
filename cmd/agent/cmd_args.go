@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"runtime"
 	"time"
 
@@ -25,12 +24,12 @@ var Cmd = &cobra.Command{
 	Use:   "agent",
 	Short: "agent that send runtime metrics to server",
 	Long: color.New(color.FgGreen).Sprint(`
-    	 █████╗  ██████╗ ███████╗███╗   ██╗████████╗
-    	██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝
-    	███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║
-    	██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║
-    	██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║
-    	╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝`+"\n\n"+
+         █████╗  ██████╗ ███████╗███╗   ██╗████████╗
+        ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝
+        ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║
+        ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║
+        ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║
+        ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝`+"\n\n"+
 		"\tagent that send runtime metrics to server") + "\n\n" +
 		"\t\x1b]8;;https://github.com/aliffka\x1b\\" +
 		color.New(color.FgCyan).Sprint("@aliffka") +
@@ -42,43 +41,32 @@ var Cmd = &cobra.Command{
 			log.Fatal().Msgf("environment variables parsing error")
 		}
 
-		if cfg.EndpointAddr != "" {
-			Flags.EndpointAddr = cfg.EndpointAddr
-		}
-		if cfg.PollInterval != 0 {
-			Flags.PollInterval = cfg.PollInterval
-		}
-		if cfg.ReportInterval != 0 {
-			Flags.ReportInterval = cfg.PollInterval
-		}
-
+		setFlags(&cfg)
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		memStats := &runtime.MemStats{}
+		client := resty.New()
 
-		memstorage.MS.Update(memStats)
-		go memstorage.MS.UpdateRoutine(memStats, time.Duration(Flags.PollInterval)*1e9)
-
-		backoffSchedule := []time.Duration{
+		backoffScedule := []time.Duration{
 			100 * time.Millisecond,
 			500 * time.Millisecond,
 			1 * time.Second,
 		}
 
-		client := resty.New()
+		tickerUpdate := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
+		defer tickerUpdate.Stop()
+		tickerSend := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
+		defer tickerSend.Stop()
+
+		sendMetrics := agent_handler.MakeSendMetricsFunc(client, Flags.EndpointAddr, backoffScedule)
 		for {
-			memstorage.MS.Iterate(func(key string, mType string, val fmt.Stringer) {
-				for _, backoff := range backoffSchedule {
-					err := agent_handler.SendRequest(client, Flags.EndpointAddr, mType, key, val)
-					if err == nil {
-						break
-					}
-					log.Error().Msgf("error sending %s metric %s(%v): %v\n", mType, key, val, err)
-					time.Sleep(backoff)
-				}
-			})
-			time.Sleep(time.Duration(Flags.ReportInterval) * 1e9)
+			select {
+			case <-tickerUpdate.C:
+				memstorage.MS.Update(memStats)
+			case <-tickerSend.C:
+				sendMetrics()
+			}
 		}
 	},
 }

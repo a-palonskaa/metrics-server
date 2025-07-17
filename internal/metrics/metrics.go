@@ -18,6 +18,7 @@ func (val Counter) String() string {
 	return strconv.FormatInt(int64(val), 10)
 }
 
+//easyjson:json
 type Metrics struct {
 	ID    string   `json:"id"`
 	MType string   `json:"type"`

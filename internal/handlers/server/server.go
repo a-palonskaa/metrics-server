@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -17,7 +16,21 @@ import (
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
-//----------------------pots-request-handlers----------------------
+// ----------------------router----------------------
+func RouteRequests(r chi.Router) {
+	r.Route("/", func(r chi.Router) {
+		r.Get("/", RootGetHandler)
+		r.Route("/", func(r chi.Router) {
+			r.Post("/value/", PostJSONValueHandler)
+			r.Get("/value/", AllValueHandler)
+			r.Get("/value/{mType}/{name}", GetHandler)
+			r.Post("/update/", PostJSONUpdateHandler)
+			r.Post("/update/{mType}/{name}/{value}", PostHandler)
+		})
+	})
+}
+
+//----------------------post-request-handlers----------------------
 func PostHandler(w http.ResponseWriter, req *http.Request) {
 	mType := chi.URLParam(req, "mType")
 	name := chi.URLParam(req, "name")
@@ -51,7 +64,7 @@ func PostJSONValueHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
+	if err = metric.UnmarshalJSON(buf.Bytes()); err != nil {
 		log.Error().Err(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -59,12 +72,12 @@ func PostJSONValueHandler(w http.ResponseWriter, req *http.Request) {
 
 	memstorage.MS.Update(&runtime.MemStats{})
 	if message, status := getMetricValue(&metric); status != http.StatusOK {
-		log.Error().Msg(message)
+		log.Error().Msg(message + req.RequestURI)
 		w.WriteHeader(status)
 		return
 	}
 
-	resp, err := json.Marshal(metric)
+	resp, err := metric.MarshalJSON()
 	if err != nil {
 		log.Error().Err(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -101,7 +114,7 @@ func PostJSONUpdateHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err = json.Unmarshal(body, &metric); err != nil {
+	if err = metric.UnmarshalJSON(body); err != nil {
 		log.Error().Err(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -113,7 +126,14 @@ func PostJSONUpdateHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(metric); err != nil {
+	resp, err := metric.MarshalJSON()
+	if err != nil {
+		log.Error().Err(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := w.Write(resp); err != nil {
 		log.Error().Err(err).Msg("error writing response")
 		w.WriteHeader(http.StatusInternalServerError)
 	}

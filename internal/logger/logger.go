@@ -9,7 +9,7 @@ import (
 )
 
 func InitLogger(filename string) {
-	ostream, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0222)
+	ostream, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to open log file(%s): %v", filename, err)
 		ostream = os.Stderr

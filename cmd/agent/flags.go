@@ -7,6 +7,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const (
+	minPort int = 1
+	maxPort int = 65535
+)
+
 type Config struct {
 	EndpointAddr   string `env:"ADDRESS"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
@@ -14,6 +19,18 @@ type Config struct {
 }
 
 var Flags Config
+
+func setFlags(cfg *Config) {
+	if cfg.EndpointAddr != "" {
+		Flags.EndpointAddr = cfg.EndpointAddr
+	}
+	if cfg.PollInterval != 0 {
+		Flags.PollInterval = cfg.PollInterval
+	}
+	if cfg.ReportInterval != 0 {
+		Flags.ReportInterval = cfg.PollInterval
+	}
+}
 
 func validateFlags() {
 	if Flags.PollInterval <= 0 || Flags.ReportInterval <= 0 {
@@ -30,7 +47,7 @@ func validateFlags() {
 		log.Fatal().Msgf("port must be a number: %s", err)
 	}
 
-	if port < 1 || port > 65535 {
-		log.Fatal().Msgf("port must be between 1 and 65535")
+	if port < minPort || port > maxPort {
+		log.Fatal().Msgf("port must be between %d and %d", minPort, maxPort)
 	}
 }
