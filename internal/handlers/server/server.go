@@ -1,12 +1,14 @@
 package server
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"runtime"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
@@ -15,103 +17,132 @@ import (
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
-type ResponseWriter interface {
-	Header() http.Header
-	Write([]byte) (int, error)
-	WriteHeader(statusCode int)
-}
-
-type responseData struct {
-	status int
-	size   int
-}
-
-type loggingResponseWriter struct {
-	http.ResponseWriter
-	responseData *responseData
-}
-
-func (r *loggingResponseWriter) Write(b []byte) (int, error) {
-	size, err := r.ResponseWriter.Write(b)
-	r.responseData.size = size
-	return size, err
-}
-
-func (r *loggingResponseWriter) WriteHeader(statusCode int) {
-	r.ResponseWriter.WriteHeader(statusCode)
-	r.responseData.status = statusCode
-}
-
-func WithLogging(fn func(w http.ResponseWriter, req *http.Request)) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		responseData := &responseData{
-			status: 0,
-			size:   0,
-		}
-
-		responseWriter := loggingResponseWriter{
-			ResponseWriter: w,
-			responseData:   responseData,
-		}
-
-		fn(&responseWriter, req)
-
-		log.Info().Str("uri", req.RequestURI).Str("method", req.Method).Msg("request")
-		log.Info().Int("status", responseData.status).Int("size", responseData.size).Msg("response")
-	}
-}
-
+//----------------------pots-request-handlers----------------------
 func PostHandler(w http.ResponseWriter, req *http.Request) {
 	mType := chi.URLParam(req, "mType")
 	name := chi.URLParam(req, "name")
 	val := chi.URLParam(req, "value")
 
-	if !memstorage.IsTypeAllowed(mType) {
-		http.Error(w, "", http.StatusBadRequest)
-		return
+	if message, status := validateParametrs(mType, name, val); status != http.StatusOK {
+		http.Error(w, message, status)
 	}
 
-	if name == "" {
-		http.Error(w, "", http.StatusNotFound)
+	if message, err := addValueToStorage(mType, name, val); err != http.StatusOK {
+		http.Error(w, message, err)
 		return
-	}
-
-	if val == "" {
-		http.Error(w, "", http.StatusBadRequest)
-		return
-	}
-
-	switch mType {
-	case memstorage.GaugeName:
-		gaugeValue, err := strconv.ParseFloat(val, 64)
-		if err != nil {
-			http.Error(w, "Incorrect gauge value", http.StatusBadRequest)
-			return
-		}
-		memstorage.MS.AddGauge(name, memstorage.Gauge(gaugeValue))
-	case memstorage.CounterName:
-		counterValue, err := strconv.Atoi(val)
-		if err != nil {
-			http.Error(w, "Incorrect couner value", http.StatusBadRequest)
-			return
-		}
-		memstorage.MS.AddCounter(name, memstorage.Counter(counterValue))
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
-func AllValueHandler(w http.ResponseWriter, req *http.Request) {
-	segments := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
-	if len(segments) > 1 {
-		http.Error(w, "Bad request", http.StatusBadRequest)
+func PostJSONValueHandler(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if req.ContentLength == 0 {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
+	var metric metrics.Metrics
+	var buf bytes.Buffer
+	_, err := buf.ReadFrom(req.Body)
+	if err != nil {
+		log.Error().Err(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err = json.Unmarshal(buf.Bytes(), &metric); err != nil {
+		log.Error().Err(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	memstorage.MS.Update(&runtime.MemStats{})
+	if message, status := getMetricValue(&metric); status != http.StatusOK {
+		log.Error().Msg(message)
+		w.WriteHeader(status)
+		return
+	}
+
+	resp, err := json.Marshal(metric)
+	if err != nil {
+		log.Error().Err(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(resp); err != nil {
+		log.Error().Err(err).Msg("error writing response")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
+func PostJSONUpdateHandler(w http.ResponseWriter, req *http.Request) {
+	contentType := req.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		log.Error().Msg("JSON format is required")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if req.ContentLength == 0 {
+		log.Error().Msg("Empty body")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var metric metrics.Metrics
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.Error().Err(err).Msg("Error Reading body")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err = json.Unmarshal(body, &metric); err != nil {
+		log.Error().Err(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if ok := addMetricToStorage(&metric); !ok {
+		log.Error().Msgf("unknown type: %s", metric.MType)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(metric); err != nil {
+		log.Error().Err(err).Msg("error writing response")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+//----------------------get-request-handlers----------------------
+
+func GetHandler(w http.ResponseWriter, req *http.Request) {
+	mType := chi.URLParam(req, "mType")
+	name := chi.URLParam(req, "name")
+
+	var val fmt.Stringer
+	if message, err := updateValueInStorage(&val, mType, name); err != http.StatusOK {
+		http.Error(w, message, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	if _, err := w.Write([]byte(val.String())); err != nil {
+		log.Error().Msgf("error writing value: %s", err)
+	}
+}
+
+func AllValueHandler(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	metrics.Update(memstorage.MS, &runtime.MemStats{})
-
+	memstorage.MS.Update(&runtime.MemStats{})
 	const tpl = `
 	<html>
 	<body>
@@ -144,34 +175,92 @@ func AllValueHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func GetHandler(w http.ResponseWriter, req *http.Request) {
-	mType := chi.URLParam(req, "mType")
-	name := chi.URLParam(req, "name")
+//----------------------minor-funcs----------------------
 
-	var val fmt.Stringer
+func validateParametrs(mType string, name string, val string) (string, int) {
+	if !memstorage.IsTypeAllowed(mType) {
+		return "not allowed type", http.StatusBadRequest
+	}
+
+	if name == "" {
+		return "empty name", http.StatusNotFound
+	}
+
+	if val == "" {
+		return "empty val", http.StatusBadRequest
+	}
+	return "", http.StatusOK
+}
+
+func addValueToStorage(mType string, name string, val string) (string, int) {
 	switch mType {
-	case memstorage.GaugeName:
-		if !memstorage.MS.IsGaugeAllowed(name) {
-			http.Error(w, "Incorrect gauge value", http.StatusNotFound)
-			return
+	case metrics.GaugeName:
+		gaugeValue, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			return "Incorrect gauge value", http.StatusBadRequest
 		}
-		metrics.Update(memstorage.MS, &runtime.MemStats{})
-		val, _ = memstorage.MS.GetGaugeValue(name)
-	case memstorage.CounterName:
-		if !memstorage.MS.IsCounterAllowed(name) {
-			http.Error(w, "Incorrect counter value", http.StatusNotFound)
-			return
+		memstorage.MS.AddGauge(name, metrics.Gauge(gaugeValue))
+	case metrics.CounterName:
+		counterValue, err := strconv.Atoi(val)
+		if err != nil {
+			return "Incorrect couner value", http.StatusBadRequest
 		}
+		memstorage.MS.AddCounter(name, metrics.Counter(counterValue))
+	}
+	return "", http.StatusOK
+}
 
-		metrics.Update(memstorage.MS, &runtime.MemStats{})
-		val, _ = memstorage.MS.GetCounterValue(name)
+func addMetricToStorage(metric *metrics.Metrics) bool {
+	switch metric.MType {
+	case "gauge":
+		memstorage.MS.AddGauge(metric.ID, metrics.Gauge(*metric.Value))
+	case "counter":
+		memstorage.MS.AddCounter(metric.ID, metrics.Counter(*metric.Delta))
 	default:
-		http.Error(w, "", http.StatusBadRequest)
-		return
+		return false
 	}
+	return true
+}
 
-	w.Header().Set("Content-Type", "text/plain")
-	if _, err := w.Write([]byte(val.String())); err != nil {
-		log.Error().Msgf("error writing value: %s", err)
+func updateValueInStorage(val *fmt.Stringer, mType string, name string) (string, int) {
+	switch mType {
+	case metrics.GaugeName:
+		if !memstorage.MS.IsGaugeAllowed(name) {
+			return "Incorrect gauge value", http.StatusNotFound
+		}
+		memstorage.MS.Update(&runtime.MemStats{})
+		*val, _ = memstorage.MS.GetGaugeValue(name)
+	case metrics.CounterName:
+		if !memstorage.MS.IsCounterAllowed(name) {
+			return "Incorrect counter value", http.StatusNotFound
+		}
+
+		memstorage.MS.Update(&runtime.MemStats{})
+		*val, _ = memstorage.MS.GetCounterValue(name)
+	default:
+		return "not allowed type", http.StatusBadRequest
 	}
+	return "", http.StatusOK
+}
+
+func getMetricValue(metric *metrics.Metrics) (string, int) {
+	switch metric.MType {
+	case "gauge":
+		val, ok := memstorage.MS.GetGaugeValue(metric.ID)
+		if !ok {
+			return "gauge name is not allowed:" + metric.ID, http.StatusNotFound
+		}
+		gVal := float64(val)
+		metric.Value = &gVal
+	case "counter":
+		val, ok := memstorage.MS.GetCounterValue(metric.ID)
+		if !ok {
+			return "counter name is not allowed:" + metric.ID, http.StatusNotFound
+		}
+		cVal := int64(val)
+		metric.Delta = &cVal
+	default:
+		return "unknown type:" + metric.MType, http.StatusBadRequest
+	}
+	return "", http.StatusOK
 }
