@@ -3,17 +3,63 @@ package server
 import (
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
 
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
+
+type ResponseWriter interface {
+	Header() http.Header
+	Write([]byte) (int, error)
+	WriteHeader(statusCode int)
+}
+
+type responseData struct {
+	status int
+	size   int
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	responseData *responseData
+}
+
+func (r *loggingResponseWriter) Write(b []byte) (int, error) {
+	size, err := r.ResponseWriter.Write(b)
+	r.responseData.size = size
+	return size, err
+}
+
+func (r *loggingResponseWriter) WriteHeader(statusCode int) {
+	r.ResponseWriter.WriteHeader(statusCode)
+	r.responseData.status = statusCode
+}
+
+func WithLogging(fn func(w http.ResponseWriter, req *http.Request)) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		responseData := &responseData{
+			status: 0,
+			size:   0,
+		}
+
+		responseWriter := loggingResponseWriter{
+			ResponseWriter: w,
+			responseData:   responseData,
+		}
+
+		fn(&responseWriter, req)
+
+		log.Info().Str("uri", req.RequestURI).Str("method", req.Method).Msg("request")
+		log.Info().Int("status", responseData.status).Int("size", responseData.size).Msg("response")
+	}
+}
 
 func PostHandler(w http.ResponseWriter, req *http.Request) {
 	mType := chi.URLParam(req, "mType")
@@ -89,12 +135,12 @@ func AllValueHandler(w http.ResponseWriter, req *http.Request) {
 
 	t, err := template.New("metrics").Parse(tpl)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 
 	err = t.Execute(w, memstorage.MS)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 }
 
@@ -126,6 +172,6 @@ func GetHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
 	if _, err := w.Write([]byte(val.String())); err != nil {
-		log.Printf("error writing value: %s", err)
+		log.Error().Msgf("error writing value: %s", err)
 	}
 }
