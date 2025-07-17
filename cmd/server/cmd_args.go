@@ -74,6 +74,7 @@ var cmd = &cobra.Command{
 
 		r.Use(server_handler.WithCompression)
 		r.Use(server_handler.WithLogging)
+
 		if Flags.StoreInterval == 0 {
 			r.Use(server_handler.MakeSavingHandler(ostream))
 		} else {
