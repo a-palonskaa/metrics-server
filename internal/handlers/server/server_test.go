@@ -13,10 +13,6 @@ import (
 //----------------------Test-Post-Handlers----------------------
 
 func TestPostHandler(t *testing.T) {
-	type want struct {
-		code int
-	}
-
 	type request struct {
 		method string
 		url    string
@@ -25,7 +21,7 @@ func TestPostHandler(t *testing.T) {
 	tests := []struct {
 		name    string
 		request request
-		want    want
+		code    int
 	}{
 		{
 			name: "no-name-gauge#1",
@@ -33,9 +29,7 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/gauge",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "no-name-gauge#2",
@@ -43,9 +37,7 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/gauge/",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "no-name-gauge#3",
@@ -53,9 +45,7 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/gauge//",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "no-name-gauge#4",
@@ -63,9 +53,7 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/gauge//3",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "no-val-gauge#1",
@@ -73,9 +61,7 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/gauge/name",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "no-val-gauge#5",
@@ -83,9 +69,7 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/gauge/name/fff",
 			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
+			code: http.StatusBadRequest,
 		},
 		{
 			name: "working-case-gauge#1",
@@ -93,9 +77,7 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/gauge/name/12.1",
 			},
-			want: want{
-				code: http.StatusOK,
-			},
+			code: http.StatusOK,
 		},
 		{
 			name: "no-name-counter#1",
@@ -103,9 +85,7 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/counter",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "no-name-counter#2",
@@ -113,9 +93,7 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/counter/",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "no-name-counter#3",
@@ -123,9 +101,7 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/counter//",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "no-val-counter#5",
@@ -133,9 +109,7 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/counter/name/fff",
 			},
-			want: want{
-				code: http.StatusBadRequest,
-			},
+			code: http.StatusBadRequest,
 		},
 		{
 			name: "working-case-counter#1",
@@ -143,18 +117,24 @@ func TestPostHandler(t *testing.T) {
 				method: http.MethodPost,
 				url:    "/update/counter/counter/1",
 			},
-			want: want{
-				code: http.StatusOK,
-			},
+			code: http.StatusOK,
 		},
 	}
 
 	r := chi.NewRouter()
-	r.Route("/value", func(r chi.Router) {
-		r.Get("/", AllValueHandler)
-		r.Get("/{mType}/{name}", GetHandler)
+	r.Use(WithCompression)
+	r.Use(WithLogging)
+
+	r.Route("/", func(r chi.Router) {
+		r.Get("/", RootGetHandler)
+		r.Route("/", func(r chi.Router) {
+			r.Post("/value/", PostJSONValueHandler)
+			r.Get("/value/", AllValueHandler)
+			r.Get("/value/{mType}/{name}", GetHandler)
+			r.Post("/update/", PostJSONUpdateHandler)
+			r.Post("/update/{mType}/{name}/{value}", PostHandler)
+		})
 	})
-	r.Post("/update/{mType}/{name}/{value}", PostHandler)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -164,7 +144,7 @@ func TestPostHandler(t *testing.T) {
 			r.ServeHTTP(w, request)
 
 			res := w.Result()
-			assert.Equal(t, test.want.code, res.StatusCode)
+			assert.Equal(t, test.code, res.StatusCode)
 
 			defer func() {
 				if err := res.Body.Close(); err != nil {
@@ -176,10 +156,6 @@ func TestPostHandler(t *testing.T) {
 }
 
 func TestGeneralCaseHandler(t *testing.T) {
-	type want struct {
-		code int
-	}
-
 	type request struct {
 		method string
 		url    string
@@ -188,7 +164,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 	tests := []struct {
 		name    string
 		request request
-		want    want
+		code    int
 	}{
 		{
 			name: "no-name-gauge#1",
@@ -196,9 +172,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 				method: http.MethodGet,
 				url:    "/value/gauge",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "no-name-gauge#2",
@@ -206,9 +180,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 				method: http.MethodGet,
 				url:    "/value/gauge/",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "no-name-gauge#3",
@@ -216,9 +188,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 				method: http.MethodGet,
 				url:    "/value/gauge//",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "non-existing-name-gauge#1",
@@ -226,9 +196,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 				method: http.MethodGet,
 				url:    "/value/gauge/name1",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 		{
 			name: "working-case-gauge#1",
@@ -236,9 +204,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 				method: http.MethodGet,
 				url:    "/value/gauge/Frees",
 			},
-			want: want{
-				code: http.StatusOK,
-			},
+			code: http.StatusOK,
 		},
 		{
 			name: "working-case-counter#1",
@@ -246,9 +212,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 				method: http.MethodGet,
 				url:    "/value/counter/PollCount",
 			},
-			want: want{
-				code: http.StatusOK,
-			},
+			code: http.StatusOK,
 		},
 		{
 			name: "working-incorr-name#1",
@@ -256,18 +220,24 @@ func TestGeneralCaseHandler(t *testing.T) {
 				method: http.MethodGet,
 				url:    "/value/counter/name2",
 			},
-			want: want{
-				code: http.StatusNotFound,
-			},
+			code: http.StatusNotFound,
 		},
 	}
 
 	r := chi.NewRouter()
-	r.Route("/value", func(r chi.Router) {
-		r.Get("/", AllValueHandler)
-		r.Get("/{mType}/{name}", GetHandler)
+	r.Use(WithCompression)
+	r.Use(WithLogging)
+
+	r.Route("/", func(r chi.Router) {
+		r.Get("/", RootGetHandler)
+		r.Route("/", func(r chi.Router) {
+			r.Post("/value/", PostJSONValueHandler)
+			r.Get("/value/", AllValueHandler)
+			r.Get("/value/{mType}/{name}", GetHandler)
+			r.Post("/update/", PostJSONUpdateHandler)
+			r.Post("/update/{mType}/{name}/{value}", PostHandler)
+		})
 	})
-	r.Post("/update/{mType}/{name}/{value}", PostHandler)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -277,7 +247,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 			r.ServeHTTP(w, request)
 
 			res := w.Result()
-			assert.Equal(t, test.want.code, res.StatusCode)
+			assert.Equal(t, test.code, res.StatusCode)
 
 			defer func() {
 				if err := res.Body.Close(); err != nil {
@@ -289,10 +259,6 @@ func TestGeneralCaseHandler(t *testing.T) {
 }
 
 func TestAllValueHandler(t *testing.T) {
-	type want struct {
-		code int
-	}
-
 	type request struct {
 		method string
 		url    string
@@ -301,7 +267,7 @@ func TestAllValueHandler(t *testing.T) {
 	tests := []struct {
 		name    string
 		request request
-		want    want
+		code    int
 	}{
 		{
 			name: "correct#1",
@@ -309,18 +275,25 @@ func TestAllValueHandler(t *testing.T) {
 				method: http.MethodGet,
 				url:    "/value/",
 			},
-			want: want{
-				code: http.StatusOK,
-			},
+			code: http.StatusOK,
 		},
 	}
 
 	r := chi.NewRouter()
-	r.Route("/value", func(r chi.Router) {
-		r.Get("/", AllValueHandler)
-		r.Get("/{mType}/{name}", GetHandler)
+
+	r.Use(WithCompression)
+	r.Use(WithLogging)
+
+	r.Route("/", func(r chi.Router) {
+		r.Get("/", RootGetHandler)
+		r.Route("/", func(r chi.Router) {
+			r.Post("/value/", PostJSONValueHandler)
+			r.Get("/value/", AllValueHandler)
+			r.Get("/value/{mType}/{name}", GetHandler)
+			r.Post("/update/", PostJSONUpdateHandler)
+			r.Post("/update/{mType}/{name}/{value}", PostHandler)
+		})
 	})
-	r.Post("/update/{mType}/{name}/{value}", PostHandler)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -330,7 +303,7 @@ func TestAllValueHandler(t *testing.T) {
 			r.ServeHTTP(w, request)
 
 			res := w.Result()
-			assert.Equal(t, test.want.code, res.StatusCode)
+			assert.Equal(t, test.code, res.StatusCode)
 
 			defer func() {
 				if err := res.Body.Close(); err != nil {

@@ -45,15 +45,20 @@ var cmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		r := chi.NewRouter()
 
-		r.Route("/value", func(r chi.Router) {
-			r.Post("/", server_handler.WithLogging(server_handler.PostJSONValueHandler))
-			r.Get("/", server_handler.WithLogging(server_handler.AllValueHandler))
-			r.Get("/{mType}/{name}", server_handler.WithLogging(server_handler.GetHandler))
+		r.Use(server_handler.WithCompression)
+		r.Use(server_handler.WithLogging)
+
+		r.Route("/", func(r chi.Router) {
+			r.Get("/", server_handler.RootGetHandler)
+			r.Route("/", func(r chi.Router) {
+				r.Post("/value/", server_handler.PostJSONValueHandler)
+				r.Get("/value/", server_handler.AllValueHandler)
+				r.Get("/value/{mType}/{name}", server_handler.GetHandler)
+				r.Post("/update/", server_handler.PostJSONUpdateHandler)
+				r.Post("/update/{mType}/{name}/{value}", server_handler.PostHandler)
+			})
 		})
-		r.Route("/update", func(r chi.Router) {
-			r.Post("/", server_handler.WithLogging(server_handler.PostJSONUpdateHandler))
-			r.Post("/{mType}/{name}/{value}", server_handler.WithLogging(server_handler.PostHandler))
-		})
+
 		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
 			log.Fatal().Msgf("error loading server: %s", err)
 		}

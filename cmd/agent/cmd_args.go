@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -67,27 +68,16 @@ var Cmd = &cobra.Command{
 
 		client := resty.New()
 		for {
-			for key, val := range memstorage.MS.GaugeMetrics {
+			memstorage.MS.Iterate(func(key string, mType string, val fmt.Stringer) {
 				for _, backoff := range backoffSchedule {
-					err := agent_handler.SendRequest(client, Flags.EndpointAddr, "gauge", key, val)
+					err := agent_handler.SendRequest(client, Flags.EndpointAddr, mType, key, val)
 					if err == nil {
 						break
 					}
-					log.Error().Msgf("Agent: Error sending gauge metric %s: %v\n", key, err)
+					log.Error().Msgf("error sending %s metric %s(%v): %v\n", mType, key, val, err)
 					time.Sleep(backoff)
 				}
-			}
-
-			for key, val := range memstorage.MS.CounterMetrics {
-				for _, backoff := range backoffSchedule {
-					err := agent_handler.SendRequest(client, Flags.EndpointAddr, "counter", key, val)
-					if err == nil {
-						break
-					}
-					log.Error().Msgf("Agent: Error sending counter metric %s: %v\n", key, err)
-					time.Sleep(backoff)
-				}
-			}
+			})
 			time.Sleep(time.Duration(Flags.ReportInterval) * 1e9)
 		}
 	},

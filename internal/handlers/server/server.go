@@ -121,7 +121,6 @@ func PostJSONUpdateHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 //----------------------get-request-handlers----------------------
-
 func GetHandler(w http.ResponseWriter, req *http.Request) {
 	mType := chi.URLParam(req, "mType")
 	name := chi.URLParam(req, "name")
@@ -173,6 +172,14 @@ func AllValueHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Fatal().Err(err)
 	}
+}
+
+func RootGetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
 }
 
 //----------------------minor-funcs----------------------

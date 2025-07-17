@@ -1,6 +1,9 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
@@ -29,12 +32,28 @@ func SendRequest(client *resty.Client, endpoint string, mType string, name strin
 		return fmt.Errorf("unknown type %s", mType)
 	}
 
-	_, err := client.SetBaseURL("http://"+endpoint).R().
-		SetHeader("Content-Type", "application/json").SetBody(body).
-		Post("/update/")
-
+	jsonData, err := json.Marshal(body)
 	if err != nil {
-		log.Error().Err(err)
+		return err
+	}
+
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := gz.Write(jsonData); err != nil {
+		return err
+	}
+	if err := gz.Close(); err != nil {
+		return err
+	}
+
+	_, err = client.SetBaseURL("http://"+endpoint).R().
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Accept-Encoding", "gzip").
+		SetHeader("Content-Encoding", "gzip").
+		SetBody(buf).
+		Post("/update/")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to send request")
 		return err
 	}
 	return nil

@@ -1,6 +1,7 @@
 package metricsstorage
 
 import (
+	"fmt"
 	"math/rand"
 	"runtime"
 	"time"
@@ -12,37 +13,30 @@ type MetricsStorage struct {
 	GaugeMetrics   map[string]t.Gauge
 	CounterMetrics map[string]t.Counter
 
-	AllowedGaugeNames   []string
-	AllowedCounterNames []string
+	AllowedGaugeNames   map[string]bool
+	AllowedCounterNames map[string]bool
 }
 
 var MS = &MetricsStorage{
 	GaugeMetrics:   make(map[string]t.Gauge),
 	CounterMetrics: make(map[string]t.Counter),
 
-	AllowedGaugeNames: []string{"Alloc", "BuckHashSys", "Frees", "GCCPUFraction", "GCSys", "HeapAlloc", "HeapIdle",
-		"HeapInuse", "HeapObjects", "HeapReleased", "LastGC", "Lookups", "MCacheInuse", "MCacheSys",
-		"MSpanInuse", "MSpanSys", "Mallocs", "NextGC", "NumForcedGC", "NumGC", "OtherSys",
-		"PauseTotalNs", "StackInuse", "StackSys", "Sys", "TotalAlloc", "RandomValue", "HeapSys"},
-	AllowedCounterNames: []string{"PollCount"},
+	AllowedGaugeNames: map[string]bool{
+		"Alloc": true, "BuckHashSys": true, "Frees": true, "GCCPUFraction": true, "GCSys": true,
+		"HeapAlloc": true, "HeapIdle": true, "HeapInuse": true, "HeapObjects": true, "HeapReleased": true,
+		"LastGC": true, "Lookups": true, "MCacheInuse": true, "MCacheSys": true, "MSpanInuse": true,
+		"MSpanSys": true, "Mallocs": true, "NextGC": true, "NumForcedGC": true, "NumGC": true, "OtherSys": true,
+		"PauseTotalNs": true, "StackInuse": true, "StackSys": true, "Sys": true, "TotalAlloc": true,
+		"RandomValue": true, "HeapSys": true},
+	AllowedCounterNames: map[string]bool{"PollCount": true},
 }
 
 func (m *MetricsStorage) IsGaugeAllowed(name string) bool {
-	for _, allowed := range m.AllowedGaugeNames {
-		if name == allowed {
-			return true
-		}
-	}
-	return false
+	return m.AllowedGaugeNames[name]
 }
 
 func (m *MetricsStorage) IsCounterAllowed(name string) bool {
-	for _, allowed := range m.AllowedCounterNames {
-		if name == allowed {
-			return true
-		}
-	}
-	return false
+	return m.AllowedCounterNames[name]
 }
 
 func (m *MetricsStorage) IsNameAllowed(mType, name string) bool {
@@ -57,14 +51,14 @@ func (m *MetricsStorage) IsNameAllowed(mType, name string) bool {
 
 func (m *MetricsStorage) AddGauge(name string, val t.Gauge) {
 	if !m.IsGaugeAllowed(name) {
-		m.AllowedGaugeNames = append(m.AllowedGaugeNames, name)
+		m.AllowedGaugeNames[name] = true
 	}
 	m.GaugeMetrics[name] = val
 }
 
 func (m *MetricsStorage) AddCounter(name string, val t.Counter) {
 	if !m.IsCounterAllowed(name) {
-		m.AllowedCounterNames = append(m.AllowedCounterNames, name)
+		m.AllowedCounterNames[name] = true
 	}
 	m.CounterMetrics[name] += val
 }
@@ -157,5 +151,15 @@ func (m *MetricsStorage) UpdateRoutine(memStats *runtime.MemStats, interval time
 	for {
 		time.Sleep(interval)
 		m.Update(memStats)
+	}
+}
+
+func (m *MetricsStorage) Iterate(f func(string, string, fmt.Stringer)) {
+	for key, value := range m.GaugeMetrics {
+		f(key, t.GaugeName, value)
+	}
+
+	for key, value := range m.CounterMetrics {
+		f(key, t.CounterName, value)
 	}
 }
