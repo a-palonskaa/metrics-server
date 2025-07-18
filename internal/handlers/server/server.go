@@ -30,6 +30,8 @@ func RouteRequests(r *chi.Mux, db *sql.DB, ms memstorage.MemStorage, storeInterv
 	} else {
 		memstorage.RunSavingStorageRoutine(ostream, storeInterval)
 	}
+	w.WriteHeader(http.StatusOK)
+}
 
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", RootGetHandler)
@@ -247,6 +249,7 @@ func GetHandler(ms memstorage.MemStorage) http.HandlerFunc {
 		}
 	}
 }
+
 func AllValueHandler(ms memstorage.MemStorage) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

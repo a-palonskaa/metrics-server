@@ -33,10 +33,12 @@ func WithCompression(fn http.Handler) http.Handler {
 			}()
 			r.Body = gz
 		}
+
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			fn.ServeHTTP(w, r)
 			return
 		}
+
 		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to create gzip writer")
@@ -48,6 +50,7 @@ func WithCompression(fn http.Handler) http.Handler {
 				log.Fatal().Err(err)
 			}
 		}()
+
 		w.Header().Set("Content-Encoding", "gzip")
 		fn.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
 	})

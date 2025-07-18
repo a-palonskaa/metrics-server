@@ -136,6 +136,7 @@ func easyjson2220f231DecodeGithubComAPalonskaaMetricsServerInternalMetrics1(in *
 		in.Consumed()
 	}
 }
+
 func easyjson2220f231EncodeGithubComAPalonskaaMetricsServerInternalMetrics1(out *jwriter.Writer, in Metrics) {
 	out.RawByte('{')
 	first := true
