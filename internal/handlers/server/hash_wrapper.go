@@ -27,7 +27,7 @@ func CheckHash(key string) func(fn http.Handler) http.Handler {
 			if key != "" {
 				hashStr := ""
 				if hashStr = r.Header.Get("HashSHA256"); hashStr == "" {
-					w.WriteHeader(http.StatusBadRequest)
+					fn.ServeHTTP(w, r)
 					return
 				}
 
@@ -52,13 +52,12 @@ func CheckHash(key string) func(fn http.Handler) http.Handler {
 				myWriter := &hashResponseWriter{ResponseWriter: w, bufer: make([]byte, 0)}
 				fn.ServeHTTP(myWriter, r)
 
-				fn.ServeHTTP(myWriter, r)
-
 				h = hmac.New(sha256.New, []byte(key))
 				h.Write(myWriter.bufer)
 				hash := hex.EncodeToString(h.Sum(nil))
 
 				w.Header().Set("HashSHA256", hash)
+				return
 			}
 			fn.ServeHTTP(w, r)
 		})

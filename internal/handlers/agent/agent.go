@@ -46,7 +46,7 @@ func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS, k
 
 	if key != "" {
 		h := hmac.New(sha256.New, []byte(key))
-		h.Write(buf.Bytes())
+		h.Write(jsonData)
 		dst := h.Sum(nil)
 		hashHex := hex.EncodeToString(dst)
 		req.SetHeader("HashSHA256", hashHex)
