@@ -18,6 +18,8 @@ type Config struct {
 	StoreInterval   int    `env:"STORE_INTERVAL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
+	DatabaseAddr    string `env:"DATABASE_DSN"`
+	Key             string `env:"KEY"`
 }
 
 var Flags Config
@@ -31,12 +33,20 @@ func setFlags(cfg *Config) {
 		Flags.FileStoragePath = cfg.FileStoragePath
 	}
 
+	if cfg.DatabaseAddr != "" {
+		Flags.DatabaseAddr = cfg.DatabaseAddr
+	}
+
 	if _, exists := os.LookupEnv("RESTORE"); exists {
 		Flags.Restore = cfg.Restore
 	}
 
 	if _, exists := os.LookupEnv("STORE_INTERVAL"); exists {
 		Flags.StoreInterval = cfg.StoreInterval
+	}
+
+	if cfg.Key != "" {
+		Flags.Key = cfg.Key
 	}
 }
 

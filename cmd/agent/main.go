@@ -7,9 +7,9 @@ import (
 )
 
 func main() {
-	logger.InitLogger("logs/info.log")
+	logger.InitLogger("logs/info_agent.log")
 
-	if err := Cmd.Execute(); err != nil {
+	if err := cmd.Execute(); err != nil {
 		log.Fatal().Err(err)
 	}
 }

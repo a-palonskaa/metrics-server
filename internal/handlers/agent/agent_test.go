@@ -1,12 +1,11 @@
 package agent
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
+	"github.com/a-palonskaa/metrics-server/internal/metrics"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -21,12 +20,13 @@ func TestSendRequest(t *testing.T) {
 
 	client := resty.New()
 
+	counter := int64(1)
+	gauge := float64(1.24)
+
 	type args struct {
 		client   *resty.Client
 		endpoint string
-		mType    string
-		name     string
-		val      fmt.Stringer
+		body     metrics.MetricsS
 	}
 	tests := []struct {
 		name    string
@@ -38,9 +38,13 @@ func TestSendRequest(t *testing.T) {
 			args: args{
 				client:   client,
 				endpoint: ts.URL[7:],
-				mType:    "gauge",
-				name:     "Frees",
-				val:      metrics.Gauge(1.54),
+				body: metrics.MetricsS{
+					{
+						ID:    "Frees",
+						MType: "gauge",
+						Value: &gauge,
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -49,31 +53,37 @@ func TestSendRequest(t *testing.T) {
 			args: args{
 				client:   client,
 				endpoint: ts.URL[7:],
-				mType:    "counter",
-				name:     "Frees",
-				val:      metrics.Counter(5),
+				body: metrics.MetricsS{
+					{
+						ID:    "Frees",
+						MType: "counter",
+						Delta: &counter,
+					},
+				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "invalid-type-case",
+			name: "empty-body",
 			args: args{
 				client:   client,
 				endpoint: ts.URL[7:],
-				mType:    "invalid",
-				name:     "Frees",
-				val:      metrics.Gauge(1.54),
+				body:     metrics.MetricsS{},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
-			name: "invalid-url-case",
+			name: "invalid-url",
 			args: args{
 				client:   client,
 				endpoint: "",
-				mType:    "counter",
-				name:     "Frees",
-				val:      metrics.Counter(5),
+				body: metrics.MetricsS{
+					{
+						ID:    "Frees",
+						MType: "counter",
+						Delta: &counter,
+					},
+				},
 			},
 			wantErr: true,
 		},
@@ -81,7 +91,7 @@ func TestSendRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := SendRequest(tt.args.client, tt.args.endpoint, tt.args.mType, tt.args.name, tt.args.val)
+			err := SendRequest(tt.args.client, tt.args.endpoint, tt.args.body, "")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
 			}

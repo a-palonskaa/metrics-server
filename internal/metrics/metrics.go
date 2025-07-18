@@ -25,3 +25,6 @@ type Metrics struct {
 	Delta *int64   `json:"delta,omitempty"` // counter
 	Value *float64 `json:"value,omitempty"` // gauge
 }
+
+//easyjson:json
+type MetricsS []Metrics
