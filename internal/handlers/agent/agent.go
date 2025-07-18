@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/rs/zerolog/log"
