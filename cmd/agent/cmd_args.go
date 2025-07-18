@@ -49,7 +49,7 @@ var Cmd = &cobra.Command{
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		sig := make(chan os.Signal)
+		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 
 		memStats := &runtime.MemStats{}
