@@ -4,10 +4,13 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+
+	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
 //----------------------Test-Post-Handlers----------------------
@@ -125,7 +128,7 @@ func TestPostHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	RouteRequests(r)
+	_ = RouteRequests(r, nil, memstorage.MS, 0, os.Stdout)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -219,7 +222,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	RouteRequests(r)
+	_ = RouteRequests(r, nil, memstorage.MS, 0, os.Stdout)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -266,7 +269,7 @@ func TestAllValueHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	RouteRequests(r)
+	_ = RouteRequests(r, nil, memstorage.MS, 0, os.Stdout)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
