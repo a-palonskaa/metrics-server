@@ -19,12 +19,13 @@ import (
 )
 
 func init() {
-	Cmd.PersistentFlags().StringVarP(&Flags.EndpointAddr, "address", "a", "localhost:8080", "Server endpoint address")
-	Cmd.PersistentFlags().IntVarP(&Flags.PollInterval, "pollinterval", "p", 2, "Metrics polling interval")
-	Cmd.PersistentFlags().IntVarP(&Flags.ReportInterval, "reportinterval", "r", 10, "Metrics reporting interval")
+	cmd.PersistentFlags().StringVarP(&Flags.EndpointAddr, "address", "a", "localhost:8080", "Server endpoint address")
+	cmd.PersistentFlags().IntVarP(&Flags.PollInterval, "pollinterval", "p", 2, "Metrics polling interval")
+	cmd.PersistentFlags().IntVarP(&Flags.ReportInterval, "reportinterval", "r", 10, "Metrics reporting interval")
+	cmd.PersistentFlags().StringVarP(&Flags.Key, "key", "k", "", "Key for hash")
 }
 
-var Cmd = &cobra.Command{
+var cmd = &cobra.Command{
 	Use:   "agent",
 	Short: "agent that send runtime metrics to server",
 	Long: color.New(color.FgGreen).Sprint(`
@@ -68,7 +69,7 @@ var Cmd = &cobra.Command{
 			case <-tickerUpdate.C:
 				memstorage.MS.Update(ctx, memStats)
 			case <-tickerSend.C:
-				agent_handler.SendMetrics(ctx, client, Flags.EndpointAddr)
+				agent_handler.SendMetrics(ctx, client, Flags.EndpointAddr, Flags.Key)
 			case <-sig:
 				return
 			}

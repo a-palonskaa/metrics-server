@@ -21,9 +21,10 @@ import (
 )
 
 // ----------------------router----------------------
-func RouteRequests(r *chi.Mux, db *sql.DB, ms memstorage.MemStorage, storeInterval int, ostream *os.File) *chi.Mux {
+func RouteRequests(r *chi.Mux, db *sql.DB, ms memstorage.MemStorage, storeInterval int, ostream *os.File, key string) *chi.Mux {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
+	r.Use(CheckHash(key))
 
 	if storeInterval == 0 {
 		r.Use(MakeSavingHandler(ostream))

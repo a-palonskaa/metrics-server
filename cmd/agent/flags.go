@@ -16,6 +16,7 @@ type Config struct {
 	EndpointAddr   string `env:"ADDRESS"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
+	Key            string `env:"KEY"`
 }
 
 var Flags Config
@@ -24,11 +25,17 @@ func setFlags(cfg *Config) {
 	if cfg.EndpointAddr != "" {
 		Flags.EndpointAddr = cfg.EndpointAddr
 	}
+
 	if cfg.PollInterval != 0 {
 		Flags.PollInterval = cfg.PollInterval
 	}
+
 	if cfg.ReportInterval != 0 {
 		Flags.ReportInterval = cfg.PollInterval
+	}
+
+	if cfg.Key != "" {
+		Flags.Key = cfg.Key
 	}
 }
 

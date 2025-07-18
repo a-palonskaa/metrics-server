@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
@@ -14,7 +17,7 @@ import (
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
-func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) error {
+func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS, key string) error {
 	if len(body) == 0 {
 		return nil
 	}
@@ -35,12 +38,21 @@ func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) e
 		return err
 	}
 
-	_, err = client.SetBaseURL("http://"+endpoint).R().
+	req := client.SetBaseURL("http://"+endpoint).R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept-Encoding", "gzip").
 		SetHeader("Content-Encoding", "gzip").
-		SetBody(buf.Bytes()).
-		Post("/updates/")
+		SetBody(buf.Bytes())
+
+	if key != "" {
+		h := hmac.New(sha256.New, []byte(key))
+		h.Write(buf.Bytes())
+		dst := h.Sum(nil)
+		hashHex := hex.EncodeToString(dst)
+		req.SetHeader("HashSHA256", hashHex)
+	}
+
+	_, err = req.Post("/updates/")
 	if err != nil {
 		log.Error().Err(err).Msg("failed to send request")
 		return err
@@ -48,7 +60,7 @@ func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) e
 	return nil
 }
 
-func SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string) {
+func SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string, key string) {
 	err := errhandler.RetriableErrHadlerVoid(
 		func() error {
 			var metric metrics.Metrics
@@ -71,7 +83,7 @@ func SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string)
 				}
 				body = append(body, metric)
 			})
-			return SendRequest(client, endpointAddr, metrics.MetricsS(body))
+			return SendRequest(client, endpointAddr, metrics.MetricsS(body), key)
 		}, errhandler.CompareErrAgent)
 	if err != nil {
 		log.Error().Err(err).Msg("error sending metrics")

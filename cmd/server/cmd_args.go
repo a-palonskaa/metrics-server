@@ -42,6 +42,7 @@ func init() {
 	cmd.PersistentFlags().BoolVarP(&Flags.Restore, "r", "r", true, "Saving or not data saved before")
 	cmd.PersistentFlags().StringVarP(&Flags.FileStoragePath, "f", "f", "server-data.txt", "Filepath")
 	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "", "Database filepath")
+	cmd.PersistentFlags().StringVarP(&Flags.Key, "key", "k", "", "Key for hash")
 }
 
 func readMetricsStorage(filename string) {
@@ -117,7 +118,7 @@ var cmd = &cobra.Command{
 
 		r := chi.NewRouter()
 
-		r = server_handler.RouteRequests(r, db, ms, Flags.StoreInterval, ostream)
+		r = server_handler.RouteRequests(r, db, ms, Flags.StoreInterval, ostream, Flags.Key)
 
 		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
 			log.Fatal().Msgf("error loading server: %s", err)
