@@ -45,39 +45,35 @@ func SendRequest(client *resty.Client, endpoint string, body metrics.MetricsS) e
 		log.Error().Err(err).Msg("failed to send request")
 		return err
 	}
-	log.Info().Msgf("sent metrics to server, %s", "http://"+endpoint+"/updates/")
 	return nil
 }
 
-func MakeSendMetricsFunc(ctx context.Context, client *resty.Client, endpointAddr string) func() {
-	return func() {
-		err := errhandler.RetriableErrHadlerVoid(
-			func() error {
-				var metric metrics.Metrics
-				var body []metrics.Metrics
-				memstorage.MS.Iterate(ctx, func(key string, mType string, val fmt.Stringer) {
-					metric.ID = key
-					metric.MType = mType
-					switch mType {
-					case "gauge":
-						gVal, _ := val.(metrics.Gauge)
-						fVal := float64(gVal)
-						metric.Value = &fVal
-					case "counter":
-						cVal, _ := val.(metrics.Counter)
-						iVal := int64(cVal)
-						metric.Delta = &iVal
-					default:
-						log.Error().Msg("unknown type")
-						return
-					}
-					body = append(body, metric)
-				})
-
-				return SendRequest(client, endpointAddr, metrics.MetricsS(body))
-			}, errhandler.CompareErrAgent)
-		if err != nil {
-			log.Error().Err(err).Msg("error sending metrics")
-		}
+func SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string) {
+	err := errhandler.RetriableErrHadlerVoid(
+		func() error {
+			var metric metrics.Metrics
+			var body []metrics.Metrics
+			memstorage.MS.Iterate(ctx, func(key string, mType string, val fmt.Stringer) {
+				metric.ID = key
+				metric.MType = mType
+				switch mType {
+				case "gauge":
+					gVal, _ := val.(metrics.Gauge)
+					fVal := float64(gVal)
+					metric.Value = &fVal
+				case "counter":
+					cVal, _ := val.(metrics.Counter)
+					iVal := int64(cVal)
+					metric.Delta = &iVal
+				default:
+					log.Error().Msg("unknown type")
+					return
+				}
+				body = append(body, metric)
+			})
+			return SendRequest(client, endpointAddr, metrics.MetricsS(body))
+		}, errhandler.CompareErrAgent)
+	if err != nil {
+		log.Error().Err(err).Msg("error sending metrics")
 	}
 }

@@ -20,12 +20,43 @@ import (
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
 
+func initMemStorage(ms *memstorage.MemStorage, db *sql.DB, databaseAddr string) {
+	if databaseAddr != "" {
+		err := errhandlers.RetriableErrHadlerVoid(
+			func() error { return database.CreateTables(db) },
+			errhandlers.CompareErrSQL)
+		if err != nil {
+			log.Fatal().Err(err)
+		}
+		var myDB database.MyDB
+		myDB.DB = db
+		*ms = myDB
+		return
+	}
+	*ms = memstorage.MS
+}
+
 func init() {
 	cmd.PersistentFlags().StringVarP(&Flags.EndpointAddr, "a", "a", "localhost:8080", "endpoint HTTP-server adress")
 	cmd.PersistentFlags().IntVarP(&Flags.StoreInterval, "i", "i", 300, "Saving server data interval")
 	cmd.PersistentFlags().BoolVarP(&Flags.Restore, "r", "r", true, "Saving or not data saved before")
 	cmd.PersistentFlags().StringVarP(&Flags.FileStoragePath, "f", "f", "server-data.txt", "Filepath")
 	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "", "Database filepath")
+}
+
+func readMetricsStorage(filename string) {
+	istream, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0666)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+
+	if err := memstorage.ReadMetricsStorage(istream); err != nil {
+		log.Fatal().Err(err)
+	}
+
+	if err := istream.Close(); err != nil {
+		log.Error().Err(err)
+	}
 }
 
 var cmd = &cobra.Command{
@@ -68,33 +99,10 @@ var cmd = &cobra.Command{
 			}
 		}()
 
-		if Flags.DatabaseAddr != "" {
-			err = errhandlers.RetriableErrHadlerVoid(
-				func() error { return database.CreateTables(db) },
-				errhandlers.CompareErrSQL)
-			if err != nil {
-				log.Fatal().Err(err)
-			}
-			var myDB database.MyDB
-			myDB.DB = db
-			ms = myDB
-		} else {
-			ms = memstorage.MS
-		}
-
-		istream, err := os.OpenFile(Flags.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
-		if err != nil {
-			log.Fatal().Err(err)
-		}
+		initMemStorage(&ms, db, Flags.DatabaseAddr)
 
 		if Flags.Restore {
-			if err := memstorage.ReadMetricsStorage(istream); err != nil {
-				log.Fatal().Err(err)
-			}
-		}
-
-		if err := istream.Close(); err != nil {
-			log.Error().Err(err)
+			readMetricsStorage(Flags.FileStoragePath)
 		}
 
 		ostream, err := os.OpenFile(Flags.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
@@ -109,15 +117,7 @@ var cmd = &cobra.Command{
 
 		r := chi.NewRouter()
 
-		r.Use(server_handler.WithCompression)
-		r.Use(server_handler.WithLogging)
-		if Flags.StoreInterval == 0 {
-			r.Use(server_handler.MakeSavingHandler(ostream))
-		} else {
-			memstorage.RunSavingStorageRoutine(ostream, Flags.StoreInterval)
-		}
-
-		server_handler.RouteRequests(r, db, ms)
+		r = server_handler.RouteRequests(r, db, ms, Flags.StoreInterval, ostream)
 
 		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
 			log.Fatal().Msgf("error loading server: %s", err)

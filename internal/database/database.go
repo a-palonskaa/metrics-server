@@ -349,8 +349,6 @@ func (db MyDB) Iterate(ctx context.Context, f func(string, string, fmt.Stringer)
 	}
 }
 
-//SEX
-
 func (db MyDB) AddMetricsToStorage(ctx context.Context, mt *metrics.MetricsS) int {
 	tx, err := errhandlers.RetriableErrHadler(func() (*sql.Tx, error) {
 		return db.DB.Begin()

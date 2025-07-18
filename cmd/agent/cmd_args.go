@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -46,22 +49,28 @@ var Cmd = &cobra.Command{
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		sig := make(chan os.Signal)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+
 		memStats := &runtime.MemStats{}
 		client := resty.New()
-		ctx := context.Background()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		tickerUpdate := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
 		defer tickerUpdate.Stop()
 		tickerSend := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
 		defer tickerSend.Stop()
 
-		sendMetrics := agent_handler.MakeSendMetricsFunc(ctx, client, Flags.EndpointAddr)
 		for {
 			select {
 			case <-tickerUpdate.C:
 				memstorage.MS.Update(ctx, memStats)
 			case <-tickerSend.C:
-				sendMetrics()
+				agent_handler.SendMetrics(ctx, client, Flags.EndpointAddr)
+			case <-sig:
+				return
 			}
 		}
 	},

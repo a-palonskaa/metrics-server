@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"os"
 	"runtime"
 	"strconv"
 	"time"
@@ -20,7 +21,16 @@ import (
 )
 
 // ----------------------router----------------------
-func RouteRequests(r chi.Router, db *sql.DB, ms memstorage.MemStorage) {
+func RouteRequests(r *chi.Mux, db *sql.DB, ms memstorage.MemStorage, storeInterval int, ostream *os.File) *chi.Mux {
+	r.Use(WithCompression)
+	r.Use(WithLogging)
+
+	if storeInterval == 0 {
+		r.Use(MakeSavingHandler(ostream))
+	} else {
+		memstorage.RunSavingStorageRoutine(ostream, storeInterval)
+	}
+
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", RootGetHandler)
 		r.Route("/", func(r chi.Router) {
@@ -33,6 +43,7 @@ func RouteRequests(r chi.Router, db *sql.DB, ms memstorage.MemStorage) {
 			r.Post("/update/{mType}/{name}/{value}", PostHandler(ms))
 		})
 	})
+	return r
 }
 
 // ----------------------db-connection----------------------

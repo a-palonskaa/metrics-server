@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -127,7 +128,7 @@ func TestPostHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	RouteRequests(r, nil, memstorage.MS)
+	_ = RouteRequests(r, nil, memstorage.MS, 0, os.Stdout)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -221,7 +222,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	RouteRequests(r, nil, memstorage.MS)
+	_ = RouteRequests(r, nil, memstorage.MS, 0, os.Stdout)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -268,7 +269,7 @@ func TestAllValueHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	RouteRequests(r, nil, memstorage.MS)
+	_ = RouteRequests(r, nil, memstorage.MS, 0, os.Stdout)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
