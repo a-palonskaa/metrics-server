@@ -14,6 +14,10 @@ var (
 	ErrDBNotInitialized = errors.New("database does not exist")
 )
 
+type PingUsecaseInterface interface {
+	Ping(ctx context.Context) error
+}
+
 type PingUsecase struct {
 	db *sql.DB
 }
@@ -32,7 +36,7 @@ func NewPingUsecase(databaseAddr string) PingUsecase {
 	}
 }
 
-func (pu PingUsecase) PingContext(ctx context.Context) error {
+func (pu PingUsecase) Ping(ctx context.Context) error {
 	if pu.db == nil {
 		return ErrDBNotInitialized
 	}

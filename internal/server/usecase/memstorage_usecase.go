@@ -15,12 +15,17 @@ import (
 	repo "github.com/a-palonskaa/metrics-server/internal/repository"
 )
 
+var (
+	ErrMetricNotFound    = errors.New("metric not found")
+	ErrMetricInvalidType = errors.New("invalid metric type")
+)
+
 type MemStorageUsecaseInterface interface {
-	AddMetricsToStorage(ctx context.Context, metric *metrics.Metrics) int
-	GetValueFromStorage(ctx context.Context, metric *metrics.Metric) (string, int)
-	UpdateValueInStorage(ctx context.Context, val *fmt.Stringer, mType string, name string) (string, int)
-	WriteMetricsStorage(ctx context.Context) error
+	AddMetricsToStorage(ctx context.Context, metric *metrics.Metrics) bool
+	GetValueFromStorage(ctx context.Context, metric *metrics.Metric) error
+	UpdateValueInStorage(ctx context.Context, val *fmt.Stringer, mType string, name string) bool
 	GetAllMetrics(ctx context.Context) (map[string]float64, map[string]int64)
+	SavingHandler() func(http.Handler) http.Handler
 	Close() error
 }
 
@@ -51,7 +56,7 @@ func NewMemStorageUsecase(storage repo.MemStorage, backup repo.BackupStorage, st
 	return ms
 }
 
-func (ms *MemStorageUsecase) GetAllMetrics(ctx context.Context) (map[string]float64, map[string]int64) {
+func (ms MemStorageUsecase) GetAllMetrics(ctx context.Context) (map[string]float64, map[string]int64) {
 	gauges := make(map[string]float64, 0)
 	counters := make(map[string]int64, 0)
 
@@ -73,7 +78,7 @@ func (ms MemStorageUsecase) Close() error {
 	return errors.Join(ms.storage.Close(), ms.backup.Close())
 }
 
-func (ms MemStorageUsecase) AddMetricsToStorage(ctx context.Context, mt *metrics.Metrics) int {
+func (ms MemStorageUsecase) AddMetricsToStorage(ctx context.Context, mt *metrics.Metrics) bool {
 	for _, metric := range *mt {
 		switch metric.MType {
 		case metrics.GaugeName:
@@ -81,18 +86,19 @@ func (ms MemStorageUsecase) AddMetricsToStorage(ctx context.Context, mt *metrics
 		case metrics.CounterName:
 			ms.storage.Add(ctx, metrics.CounterName, metric.ID, metrics.Counter(*metric.Delta))
 		default:
-			return http.StatusBadRequest
+			return false
 		}
 	}
-	return http.StatusOK
+	return true
 }
 
-func (ms MemStorageUsecase) GetValueFromStorage(ctx context.Context, metric *metrics.Metric) (string, int) {
+func (ms MemStorageUsecase) GetValueFromStorage(ctx context.Context, metric *metrics.Metric) error {
 	switch metric.MType {
 	case metrics.GaugeName:
 		val, ok := ms.storage.Get(ctx, metrics.GaugeName, metric.ID)
 		if !ok {
-			return metrics.GaugeName + "name is not allowed:" + metric.ID, http.StatusNotFound
+			log.Error().Msgf("gauge metric %s not found", metric.ID)
+			return fmt.Errorf("%w: %s", ErrMetricNotFound, metric.ID)
 		}
 		gVal, _ := val.(metrics.Gauge)
 		gFloatVal := float64(gVal)
@@ -100,18 +106,20 @@ func (ms MemStorageUsecase) GetValueFromStorage(ctx context.Context, metric *met
 	case metrics.CounterName:
 		val, ok := ms.storage.Get(ctx, metrics.CounterName, metric.ID)
 		if !ok {
-			return metrics.CounterName + "name is not allowed:" + metric.ID, http.StatusNotFound
+			log.Error().Msgf("counter metric %s not found", metric.ID)
+			return fmt.Errorf("%w: %s", ErrMetricNotFound, metric.ID)
 		}
 		cVal, _ := val.(metrics.Counter)
 		cIntVal := int64(cVal)
 		metric.Delta = &cIntVal
 	default:
-		return "unknown type:" + metric.MType, http.StatusBadRequest
+		log.Error().Msgf("invalid type %sd", metric.MType)
+		return fmt.Errorf("%w: %s", ErrMetricInvalidType, metric.MType)
 	}
-	return "", http.StatusOK
+	return nil
 }
 
-func (ms MemStorageUsecase) UpdateValueInStorage(ctx context.Context, val *fmt.Stringer, mType string, name string) (string, int) {
+func (ms MemStorageUsecase) UpdateValueInStorage(ctx context.Context, val *fmt.Stringer, mType string, name string) bool {
 	memStats := &runtime.MemStats{}
 	runtime.ReadMemStats(memStats)
 
@@ -147,10 +155,7 @@ func (ms MemStorageUsecase) UpdateValueInStorage(ctx context.Context, val *fmt.S
 
 	var ok bool
 	*val, ok = ms.storage.Get(ctx, mType, name)
-	if !ok {
-		return "", http.StatusNotFound
-	}
-	return "", http.StatusOK
+	return ok
 }
 
 func (ms MemStorageUsecase) LoadData(ctx context.Context) (metrics.Metrics, error) {
