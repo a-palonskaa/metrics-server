@@ -15,6 +15,13 @@ import (
 	errhandler "github.com/a-palonskaa/metrics-server/pkg/err_handlers"
 )
 
+// ----------------------handler-interface----------------------
+type Handler interface {
+	Update(ctx context.Context)
+	SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string)
+}
+
+// ----------------------handler-type----------------------
 type AgentHandler struct {
 	msUsecase usecase.MemStorageUsecase
 }
@@ -25,6 +32,22 @@ func NewHandler(storage repo.MemStorage) AgentHandler {
 	}
 }
 
+func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string) {
+	err := errhandler.RetriableErrHadlerVoid(
+		func() error {
+			body := h.msUsecase.ListAllMetrics(ctx)
+			return h.SendRequest(client, endpointAddr, body)
+		}, errhandler.CompareErrAgent)
+	if err != nil {
+		log.Error().Err(err).Msg("error sending metrics")
+	}
+}
+
+func (h AgentHandler) Update(ctx context.Context) {
+	h.msUsecase.UpdateMetrics(ctx)
+}
+
+// ----------------------ServerHandler-methods----------------------
 func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body metrics.Metrics) error {
 	if len(body) == 0 {
 		return nil
@@ -58,19 +81,4 @@ func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body me
 	}
 	log.Info().Msgf("sent metrics to server, %s", "http://"+endpoint+"/updates/")
 	return nil
-}
-
-func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string) {
-	err := errhandler.RetriableErrHadlerVoid(
-		func() error {
-			body := h.msUsecase.ListAllMetrics(ctx)
-			return h.SendRequest(client, endpointAddr, body)
-		}, errhandler.CompareErrAgent)
-	if err != nil {
-		log.Error().Err(err).Msg("error sending metrics")
-	}
-}
-
-func (h AgentHandler) Update(ctx context.Context) {
-	h.msUsecase.UpdateMetrics(ctx)
 }

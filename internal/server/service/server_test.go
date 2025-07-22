@@ -9,7 +9,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 
+<<<<<<< HEAD
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
+=======
+	file "github.com/a-palonskaa/metrics-server/internal/repository/file"
+	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
+	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
+>>>>>>> a77deee (file logic)
 )
 
 //----------------------Test-Post-Handlers----------------------
@@ -124,10 +130,25 @@ func TestPostHandler(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	r.Use(WithCompression)
-	r.Use(WithLogging)
 
+<<<<<<< HEAD
 	RouteRequests(r, nil, memstorage.MS)
+=======
+	memStorage := memstorage.NewMetricsStorage()
+	backupStorage := file.NewFileBackup("")
+
+	msUsecase := usecase.NewMemStorageUsecase(memStorage, backupStorage, 0, false)
+	pingUsecase := usecase.NewPingUsecase("")
+
+	serverHandler := NewHandler(msUsecase, pingUsecase)
+	defer func() {
+		if err := serverHandler.Close(); err != nil {
+			return
+		}
+	}()
+
+	_ = serverHandler.RouteRequests(r)
+>>>>>>> a77deee (file logic)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -218,10 +239,25 @@ func TestGeneralCaseHandler(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	r.Use(WithCompression)
-	r.Use(WithLogging)
 
+<<<<<<< HEAD
 	RouteRequests(r, nil, memstorage.MS)
+=======
+	memStorage := memstorage.NewMetricsStorage()
+	backupStorage := file.NewFileBackup("")
+
+	msUsecase := usecase.NewMemStorageUsecase(memStorage, backupStorage, 0, false)
+	pingUsecase := usecase.NewPingUsecase("")
+
+	serverHandler := NewHandler(msUsecase, pingUsecase)
+	defer func() {
+		if err := serverHandler.Close(); err != nil {
+			return
+		}
+	}()
+
+	_ = serverHandler.RouteRequests(r)
+>>>>>>> a77deee (file logic)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -265,10 +301,24 @@ func TestAllValueHandler(t *testing.T) {
 
 	r := chi.NewRouter()
 
-	r.Use(WithCompression)
-	r.Use(WithLogging)
+	memStorage := memstorage.NewMetricsStorage()
+	backupStorage := file.NewFileBackup("")
 
+<<<<<<< HEAD
 	RouteRequests(r, nil, memstorage.MS)
+=======
+	msUsecase := usecase.NewMemStorageUsecase(memStorage, backupStorage, 0, false)
+	pingUsecase := usecase.NewPingUsecase("")
+
+	serverHandler := NewHandler(msUsecase, pingUsecase)
+	defer func() {
+		if err := serverHandler.Close(); err != nil {
+			return
+		}
+	}()
+
+	_ = serverHandler.RouteRequests(r)
+>>>>>>> a77deee (file logic)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

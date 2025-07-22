@@ -91,7 +91,7 @@ func TestSendRequest(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(memstorage.MS)
+	handler := NewHandler(memstorage.NewMetricsStorage())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := handler.SendRequest(tt.args.client, tt.args.endpoint, tt.args.body)

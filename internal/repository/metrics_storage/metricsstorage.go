@@ -3,15 +3,13 @@ package metricsstorage
 import (
 	"context"
 	"fmt"
-	"math/rand"
-	"net/http"
-	"runtime"
 
 	"github.com/rs/zerolog/log"
 
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 )
 
+// ----------------------MetricsStorage-type----------------------
 type MetricsStorage struct {
 	GaugeMetrics   map[string]metrics.Gauge
 	CounterMetrics map[string]metrics.Counter
@@ -20,26 +18,52 @@ type MetricsStorage struct {
 	AllowedCounterNames map[string]bool
 }
 
-var MS = &MetricsStorage{
-	GaugeMetrics:   make(map[string]metrics.Gauge),
-	CounterMetrics: make(map[string]metrics.Counter),
+func NewMetricsStorage() *MetricsStorage {
+	return &MetricsStorage{
+		GaugeMetrics:   make(map[string]metrics.Gauge),
+		CounterMetrics: make(map[string]metrics.Counter),
 
-	AllowedGaugeNames: map[string]bool{
-		"Alloc": true, "BuckHashSys": true, "Frees": true, "GCCPUFraction": true, "GCSys": true,
-		"HeapAlloc": true, "HeapIdle": true, "HeapInuse": true, "HeapObjects": true, "HeapReleased": true,
-		"LastGC": true, "Lookups": true, "MCacheInuse": true, "MCacheSys": true, "MSpanInuse": true,
-		"MSpanSys": true, "Mallocs": true, "NextGC": true, "NumForcedGC": true, "NumGC": true, "OtherSys": true,
-		"PauseTotalNs": true, "StackInuse": true, "StackSys": true, "Sys": true, "TotalAlloc": true,
-		"RandomValue": true, "HeapSys": true},
-	AllowedCounterNames: map[string]bool{"PollCount": true},
+		AllowedGaugeNames: map[string]bool{
+			"Alloc": true, "BuckHashSys": true, "Frees": true, "GCCPUFraction": true, "GCSys": true,
+			"HeapAlloc": true, "HeapIdle": true, "HeapInuse": true, "HeapObjects": true, "HeapReleased": true,
+			"LastGC": true, "Lookups": true, "MCacheInuse": true, "MCacheSys": true, "MSpanInuse": true,
+			"MSpanSys": true, "Mallocs": true, "NextGC": true, "NumForcedGC": true, "NumGC": true, "OtherSys": true,
+			"PauseTotalNs": true, "StackInuse": true, "StackSys": true, "Sys": true, "TotalAlloc": true,
+			"RandomValue": true, "HeapSys": true},
+		AllowedCounterNames: map[string]bool{"PollCount": true},
+	}
 }
 
-func (m *MetricsStorage) Database() *sql.DB {
-	return nil
+// ----------------------MemStorageInterface----------------------
+func (m *MetricsStorage) Add(_ context.Context, mType, name string, val fmt.Stringer) {
+	switch mType {
+	case metrics.GaugeName:
+		if v, ok := val.(metrics.Gauge); ok {
+			m.AddGauge(context.TODO(), name, v)
+		}
+	case metrics.CounterName:
+		if v, ok := val.(metrics.Counter); ok {
+			m.AddCounter(context.TODO(), name, v)
+		}
+	default:
+		log.Error().Msgf("unallowed type %s", mType)
+	}
 }
 
-func (m *MetricsStorage) Close() error {
-	return nil
+func (m *MetricsStorage) Get(_ context.Context, mType, name string) (fmt.Stringer, bool) {
+	if ok := m.IsNameAllowed(context.TODO(), mType, name); !ok {
+		return nil, false
+	}
+
+	switch mType {
+	case metrics.GaugeName:
+		val, ok := m.GetGaugeValue(context.TODO(), name)
+		return val, ok
+	case metrics.CounterName:
+		val, ok := m.GetCounterValue(context.TODO(), name)
+		return val, ok
+	}
+	return nil, false
 }
 
 func (m *MetricsStorage) List(ctx context.Context) []metrics.Metric {
@@ -64,14 +88,12 @@ func (m *MetricsStorage) List(ctx context.Context) []metrics.Metric {
 	return allMetrics
 }
 
-func (m *MetricsStorage) IsGaugeAllowed(_ context.Context, name string) bool {
-	return m.AllowedGaugeNames[name]
+func (m *MetricsStorage) Close() error {
+	return nil
 }
 
-func (m *MetricsStorage) IsCounterAllowed(_ context.Context, name string) bool {
-	return m.AllowedCounterNames[name]
-}
-
+// ----------------------MemStorage-methods----------------------
+// ------------------is-allowed------------------
 func (m *MetricsStorage) IsNameAllowed(_ context.Context, mType, name string) bool {
 	switch mType {
 	case metrics.GaugeName:
@@ -82,6 +104,15 @@ func (m *MetricsStorage) IsNameAllowed(_ context.Context, mType, name string) bo
 	return false
 }
 
+func (m *MetricsStorage) IsGaugeAllowed(_ context.Context, name string) bool {
+	return m.AllowedGaugeNames[name]
+}
+
+func (m *MetricsStorage) IsCounterAllowed(_ context.Context, name string) bool {
+	return m.AllowedCounterNames[name]
+}
+
+// ------------------add------------------
 func (m *MetricsStorage) AddGauge(_ context.Context, name string, val metrics.Gauge) {
 	if !m.IsGaugeAllowed(context.TODO(), name) {
 		m.AllowedGaugeNames[name] = true
@@ -96,22 +127,6 @@ func (m *MetricsStorage) AddCounter(_ context.Context, name string, val metrics.
 	m.CounterMetrics[name] += val
 }
 
-func (m *MetricsStorage) Add(_ context.Context, mType, name string, val fmt.Stringer) {
-	switch mType {
-	case metrics.GaugeName:
-		if v, ok := val.(metrics.Gauge); ok {
-			m.AddGauge(context.TODO(), name, v)
-			return true
-		}
-	case metrics.CounterName:
-		if v, ok := val.(metrics.Counter); ok {
-			m.AddCounter(context.TODO(), name, v)
-			return true
-		}
-	}
-	return false
-}
-
 func (m *MetricsStorage) GetGaugeValue(_ context.Context, name string) (metrics.Gauge, bool) {
 	if m.IsGaugeAllowed(context.TODO(), name) {
 		return m.GaugeMetrics[name], true
@@ -124,86 +139,4 @@ func (m *MetricsStorage) GetCounterValue(_ context.Context, name string) (metric
 		return m.CounterMetrics[name], true
 	}
 	return 0, false
-}
-
-func (m *MetricsStorage) Get(_ context.Context, mType, name string) (fmt.Stringer, bool) {
-	if ok := m.IsNameAllowed(context.TODO(), mType, name); !ok {
-		return nil, false
-	}
-
-	switch mType {
-	case metrics.GaugeName:
-		val, ok := m.GetGaugeValue(context.TODO(), name)
-		return val, ok
-	case metrics.CounterName:
-		val, ok := m.GetCounterValue(context.TODO(), name)
-		return val, ok
-	default:
-		return nil, false
-	}
-}
-
-func IsTypeAllowed(mType string) bool {
-	return mType == metrics.GaugeName || mType == metrics.CounterName
-}
-
-func (m *MetricsStorage) Update(_ context.Context, memStats *runtime.MemStats) {
-	runtime.ReadMemStats(memStats)
-
-	// gauge metrics
-	m.GaugeMetrics["Alloc"] = metrics.Gauge(memStats.Alloc)
-	m.GaugeMetrics["BuckHashSys"] = metrics.Gauge(memStats.BuckHashSys)
-	m.GaugeMetrics["Frees"] = metrics.Gauge(memStats.Frees)
-	m.GaugeMetrics["GCCPUFraction"] = metrics.Gauge(memStats.GCCPUFraction)
-	m.GaugeMetrics["GCSys"] = metrics.Gauge(memStats.GCSys)
-	m.GaugeMetrics["HeapAlloc"] = metrics.Gauge(memStats.HeapAlloc)
-	m.GaugeMetrics["HeapIdle"] = metrics.Gauge(memStats.HeapIdle)
-	m.GaugeMetrics["HeapInuse"] = metrics.Gauge(memStats.HeapInuse)
-	m.GaugeMetrics["HeapObjects"] = metrics.Gauge(memStats.HeapObjects)
-	m.GaugeMetrics["HeapReleased"] = metrics.Gauge(memStats.HeapReleased)
-	m.GaugeMetrics["LastGC"] = metrics.Gauge(memStats.LastGC)
-	m.GaugeMetrics["Lookups"] = metrics.Gauge(memStats.Lookups)
-	m.GaugeMetrics["MCacheInuse"] = metrics.Gauge(memStats.MCacheInuse)
-	m.GaugeMetrics["MCacheSys"] = metrics.Gauge(memStats.MCacheSys)
-	m.GaugeMetrics["MSpanInuse"] = metrics.Gauge(memStats.MSpanInuse)
-	m.GaugeMetrics["MSpanSys"] = metrics.Gauge(memStats.MSpanSys)
-	m.GaugeMetrics["Mallocs"] = metrics.Gauge(memStats.Mallocs)
-	m.GaugeMetrics["NextGC"] = metrics.Gauge(memStats.NextGC)
-	m.GaugeMetrics["NumForcedGC"] = metrics.Gauge(memStats.NumForcedGC)
-	m.GaugeMetrics["NumGC"] = metrics.Gauge(memStats.NumGC)
-	m.GaugeMetrics["OtherSys"] = metrics.Gauge(memStats.OtherSys)
-	m.GaugeMetrics["PauseTotalNs"] = metrics.Gauge(memStats.PauseTotalNs)
-	m.GaugeMetrics["StackInuse"] = metrics.Gauge(memStats.StackInuse)
-	m.GaugeMetrics["StackSys"] = metrics.Gauge(memStats.StackSys)
-	m.GaugeMetrics["Sys"] = metrics.Gauge(memStats.Sys)
-	m.GaugeMetrics["TotalAlloc"] = metrics.Gauge(memStats.TotalAlloc)
-	m.GaugeMetrics["HeapSys"] = metrics.Gauge(memStats.HeapSys)
-	m.GaugeMetrics["RandomValue"] = metrics.Gauge(rand.Float64())
-
-	// counter metrics
-	m.CounterMetrics["PollCount"]++
-}
-
-func (m *MetricsStorage) Iterate(_ context.Context, f func(string, string, fmt.Stringer)) {
-	for key, value := range m.GaugeMetrics {
-		f(key, metrics.GaugeName, value)
-	}
-
-	for key, value := range m.CounterMetrics {
-		f(key, metrics.CounterName, value)
-	}
-}
-
-func (m *MetricsStorage) AddMetricsToStorage(_ context.Context, mt *metrics.MetricsS) int {
-	for _, metric := range *mt {
-		switch metric.MType {
-		case "gauge":
-			m.AddGauge(context.TODO(), metric.ID, metrics.Gauge(*metric.Value))
-		case "counter":
-			m.AddCounter(context.TODO(), metric.ID, metrics.Counter(*metric.Delta))
-		default:
-			return http.StatusBadRequest
-		}
-	}
-	return http.StatusOK
 }

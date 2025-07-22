@@ -14,10 +14,17 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
+<<<<<<< HEAD
 	database "github.com/a-palonskaa/metrics-server/internal/database"
 	errhandlers "github.com/a-palonskaa/metrics-server/internal/err_handlers"
 	server_handler "github.com/a-palonskaa/metrics-server/internal/handlers/server"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
+=======
+	repo "github.com/a-palonskaa/metrics-server/internal/repository"
+	file "github.com/a-palonskaa/metrics-server/internal/repository/file"
+	service "github.com/a-palonskaa/metrics-server/internal/server/service"
+	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
+>>>>>>> a77deee (file logic)
 )
 
 func init() {
@@ -52,73 +59,22 @@ var cmd = &cobra.Command{
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		var ms memstorage.MemStorage
-		var db *sql.DB
+		memStorage := repo.NewMemStorage(Flags.DatabaseAddr)
+		backupStorage := file.NewFileBackup(Flags.FileStoragePath)
 
-		db, err := errhandlers.RetriableErrHadler(
-			func() (*sql.DB, error) { return sql.Open("pgx", Flags.DatabaseAddr) },
-			errhandlers.CompareErrSQL,
-		)
-		if err != nil {
-			log.Fatal().Err(err).Msg("failed to initialize *sql.DB and create a connection pull")
-		}
+		msUsecase := usecase.NewMemStorageUsecase(memStorage, backupStorage, Flags.StoreInterval, Flags.Restore)
+		pingUsecase := usecase.NewPingUsecase(Flags.DatabaseAddr)
+
+		serverHandler := service.NewHandler(msUsecase, pingUsecase)
 		defer func() {
-			if err := db.Close(); err != nil {
-				log.Fatal().Err(err)
-			}
-		}()
-
-		if Flags.DatabaseAddr != "" {
-			err = errhandlers.RetriableErrHadlerVoid(
-				func() error { return database.CreateTables(db) },
-				errhandlers.CompareErrSQL)
-			if err != nil {
-				log.Fatal().Err(err)
-			}
-			var myDB database.MyDB
-			myDB.DB = db
-			ms = myDB
-		} else {
-			ms = memstorage.MS
-		}
-
-		istream, err := os.OpenFile(Flags.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
-		if err != nil {
-			log.Fatal().Err(err)
-		}
-
-		if Flags.Restore {
-			if err := memstorage.ReadMetricsStorage(istream); err != nil {
-				log.Fatal().Err(err)
-			}
-		}
-
-		if err := istream.Close(); err != nil {
-			log.Error().Err(err)
-		}
-
-		ostream, err := os.OpenFile(Flags.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-		if err != nil {
-			log.Fatal().Err(err)
-		}
-		defer func() {
-			if err := ostream.Close(); err != nil {
-				log.Error().Err(err)
+			if err := serverHandler.Close(); err != nil {
+				log.Error().Err(err).Msg("error closing handler")
+				return
 			}
 		}()
 
 		r := chi.NewRouter()
-
-		r.Use(server_handler.WithCompression)
-		r.Use(server_handler.WithLogging)
-
-		if Flags.StoreInterval == 0 {
-			r.Use(server_handler.MakeSavingHandler(ostream))
-		} else {
-			memstorage.RunSavingStorageRoutine(ostream, Flags.StoreInterval)
-		}
-
-		server_handler.RouteRequests(r, db, ms)
+		r = serverHandler.RouteRequests(r)
 
 		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
 			log.Fatal().Msgf("error loading server: %s", err)

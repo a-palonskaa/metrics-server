@@ -18,7 +18,7 @@ type PingUsecase struct {
 	db *sql.DB
 }
 
-func (pu *PingUsecase) Init(databaseAddr string) {
+func NewPingUsecase(databaseAddr string) PingUsecase {
 	db, err := errhandlers.RetriableErrHadler(
 		func() (*sql.DB, error) { return sql.Open("pgx", databaseAddr) },
 		errhandlers.CompareErrSQL,
@@ -27,7 +27,9 @@ func (pu *PingUsecase) Init(databaseAddr string) {
 		log.Error().Err(err).Msg("failed to initialize *sql.DB and create a connection pull")
 		db = nil
 	}
-	pu.db = db
+	return PingUsecase{
+		db: db,
+	}
 }
 
 func (pu PingUsecase) PingContext(ctx context.Context) error {

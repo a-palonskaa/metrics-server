@@ -27,6 +27,25 @@ func RouteRequests(r chi.Router, db *sql.DB, ms memstorage.MemStorage) {
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 )
 
+const htmlTemplate = `
+<html>
+<body>
+    <h1>Metrics</h1>
+    <h2>Gauge Metrics</h2>
+    <table border='1'>
+        {{range $name, $value := .Gauges}}
+        <tr><td>{{$name}}</td><td>{{$value}}</td></tr>
+        {{end}}
+    </table>
+    <h2>Counter Metrics</h2>
+    <table border='1'>
+        {{range $name, $value := .Counters}}
+        <tr><td>{{$name}}</td><td>{{$value}}</td></tr>
+        {{end}}
+    </table>
+</body>
+</html>`
+
 // ----------------------handler-interface----------------------
 type Handler interface {
 	RouteRequests(r *chi.Mux) *chi.Mux
@@ -37,21 +56,12 @@ type Handler interface {
 type ServerHandler struct {
 	msUsecase   usecase.MemStorageUsecase
 	pingUsecase usecase.PingUsecase
-
-	storeInterval int
 }
 
-func NewHandler(databaseAddr string, restore bool, fileStoragePath string, storeInterval int) ServerHandler {
-	var msUcase usecase.MemStorageUsecase
-	msUcase.Init(databaseAddr, restore, fileStoragePath)
-
-	var pingUsecase usecase.PingUsecase
-	pingUsecase.Init(databaseAddr)
-
+func NewHandler(msUsecase usecase.MemStorageUsecase, pingUsecase usecase.PingUsecase) ServerHandler {
 	return ServerHandler{
-		msUsecase:     msUcase,
-		pingUsecase:   pingUsecase,
-		storeInterval: storeInterval,
+		msUsecase:   msUsecase,
+		pingUsecase: pingUsecase,
 	}
 }
 
@@ -63,10 +73,8 @@ func (h ServerHandler) RouteRequests(r *chi.Mux) *chi.Mux {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	if h.storeInterval == 0 {
-		r.Use(h.MakeSavingHandler())
-	} else {
-		h.RunSavingStorageRoutine()
+	if savingHandler := h.msUsecase.SavingHandler(); savingHandler != nil {
+		r.Use(savingHandler)
 	}
 
 >>>>>>> 34dc220 (arc):internal/server/service/server.go
@@ -378,6 +386,7 @@ func AllValueHandler(ms memstorage.MemStorage) http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 
+<<<<<<< HEAD
 		ms.Update(req.Context(), &runtime.MemStats{})
 		const tpl = `
 		<html>
@@ -412,6 +421,28 @@ func AllValueHandler(ms memstorage.MemStorage) http.HandlerFunc {
 		}
 =======
 	err = t.Execute(w, h.msUsecase) //ХУЙНЯ -
+=======
+func (h ServerHandler) AllValueHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	gauges, counters := h.msUsecase.GetAllMetrics(r.Context())
+	data := struct {
+		Gauges   map[string]float64
+		Counters map[string]int64
+	}{
+		gauges,
+		counters,
+	}
+
+	t, err := template.New("metrics").Parse(htmlTemplate)
+	if err != nil {
+		log.Error().Err(err).Msg("error creting html temlate with metrics")
+		return
+	}
+
+	err = t.Execute(w, data)
+>>>>>>> a77deee (file logic)
 	if err != nil {
 		log.Error().Err(err).Msg("error writing html temlate")
 		return
@@ -427,6 +458,7 @@ func RootGetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 }
 
+<<<<<<< HEAD
 <<<<<<< HEAD:internal/handlers/server/server.go
 =======
 // ---------------------Saving-handler--------------------
@@ -453,6 +485,8 @@ func (h ServerHandler) MakeSavingHandler() func(fn http.Handler) http.Handler {
 }
 
 >>>>>>> 34dc220 (arc):internal/server/service/server.go
+=======
+>>>>>>> a77deee (file logic)
 //----------------------minor-funcs----------------------
 
 func validateParametrs(mType string, name string, val string) (string, int) {

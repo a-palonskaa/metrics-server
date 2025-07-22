@@ -53,7 +53,7 @@ var Cmd = &cobra.Command{
 
 		client := resty.New()
 
-		handler := agent_handler.NewHandler(memstorage.MS)
+		handler := agent_handler.NewHandler(memstorage.NewMetricsStorage())
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

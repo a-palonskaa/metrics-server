@@ -2,65 +2,85 @@ package usecase
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
-	"os"
 	"runtime"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	repo "github.com/a-palonskaa/metrics-server/internal/repository"
-	database "github.com/a-palonskaa/metrics-server/internal/repository/database"
-	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
-	errhandlers "github.com/a-palonskaa/metrics-server/pkg/err_handlers"
 )
-
-type MemStorageUsecase struct {
-	storage repo.MemStorage
-	ostream *os.File
-}
 
 type MemStorageUsecaseInterface interface {
 	AddMetricsToStorage(ctx context.Context, metric *metrics.Metrics) int
 	GetValueFromStorage(ctx context.Context, metric *metrics.Metric) (string, int)
 	UpdateValueInStorage(ctx context.Context, val *fmt.Stringer, mType string, name string) (string, int)
-	WriteMetricsStorage() error
+	WriteMetricsStorage(ctx context.Context) error
+	GetAllMetrics(ctx context.Context) (map[string]float64, map[string]int64)
 	Close() error
 }
 
-func (ms MemStorageUsecase) Close() error {
-	err := ms.storage.Close()
-	if err != nil {
-		log.Error().Err(err).Msg("error closing storage")
-	}
-
-	if ms.ostream != os.Stdout && ms.ostream != os.Stderr {
-		errOstream := ms.ostream.Close()
-		if errOstream != nil {
-			log.Error().Err(errOstream).Msg("error closing ostream")
-			err = errors.Join(err, errOstream)
-		}
-	}
-	return err
+type MemStorageUsecase struct {
+	storage       repo.MemStorage
+	backup        repo.BackupStorage
+	storeInterval int
 }
 
-// FIXME -  extralogs
-func (ms MemStorageUsecase) AddMetricsToStorage(ctx context.Context, mt *metrics.Metrics) int {
-	for _, metric := range *mt {
-		log.Info().Msgf("%s %s", metric.MType, metric.ID)
+func NewMemStorageUsecase(storage repo.MemStorage, backup repo.BackupStorage, storeInterval int, restore bool) MemStorageUsecase {
+	ms := MemStorageUsecase{
+		storage:       storage,
+		backup:        backup,
+		storeInterval: storeInterval,
+	}
+
+	if storeInterval > 0 {
+		ms.StartBackupRoutine()
+	}
+
+	if restore {
+		data, err := ms.LoadData(context.Background())
+		if err != nil {
+			log.Error().Err(err).Msg("failed to restore data")
+		}
+		ms.AddMetricsToStorage(context.Background(), &data)
+	}
+	return ms
+}
+
+func (ms *MemStorageUsecase) GetAllMetrics(ctx context.Context) (map[string]float64, map[string]int64) {
+	gauges := make(map[string]float64, 0)
+	counters := make(map[string]int64, 0)
+
+	mt := ms.storage.List(ctx)
+	for _, metric := range mt {
 		switch metric.MType {
 		case metrics.GaugeName:
-			log.Info().Msgf("adding GAUGE metrics %s %s %v", metric.MType, metric.ID, *metric.Value)
+			gauges[metric.ID] = *metric.Value
+		case metrics.CounterName:
+			counters[metric.ID] = *metric.Delta
+		default:
+			log.Error().Msgf("unallowed type %s", metric.MType)
+		}
+	}
+	return gauges, counters
+}
+
+func (ms MemStorageUsecase) Close() error {
+	return errors.Join(ms.storage.Close(), ms.backup.Close())
+}
+
+func (ms MemStorageUsecase) AddMetricsToStorage(ctx context.Context, mt *metrics.Metrics) int {
+	for _, metric := range *mt {
+		switch metric.MType {
+		case metrics.GaugeName:
 			ms.storage.Add(ctx, metrics.GaugeName, metric.ID, metrics.Gauge(*metric.Value))
 		case metrics.CounterName:
-			log.Info().Msgf("adding COUNTER metrics %s %s %v", metric.MType, metric.ID, *metric.Delta)
 			ms.storage.Add(ctx, metrics.CounterName, metric.ID, metrics.Counter(*metric.Delta))
 		default:
-			log.Info().Msgf("unknown type %s, returning BadRequest", metric.MType)
 			return http.StatusBadRequest
 		}
 	}
@@ -133,93 +153,65 @@ func (ms MemStorageUsecase) UpdateValueInStorage(ctx context.Context, val *fmt.S
 	return "", http.StatusOK
 }
 
-func (ms MemStorageUsecase) WriteMetricsStorage() error {
-	if _, err := ms.ostream.Seek(0, 0); err != nil {
-		log.Error().Err(err).Msgf("moving file prt to begining %v %v", ms.ostream, ms.ostream == os.Stdout)
-		return err
-	}
-
-	allMetrics := metrics.Metrics(ms.storage.List(context.TODO()))
-	data, err := allMetrics.MarshalJSON()
+func (ms MemStorageUsecase) LoadData(ctx context.Context) (metrics.Metrics, error) {
+	data, err := ms.backup.Load(ctx)
 	if err != nil {
-		log.Error().Err(err).Msg("error encoding to json")
-		return err
+		log.Error().Err(err).Msg("error loading data")
+		return metrics.Metrics{}, err
 	}
 
-	if _, err := ms.ostream.Write(append(data, '\n')); err != nil {
-		log.Error().Err(err).Msg("error writing data to ostream")
-		return err
+	var mt metrics.Metrics
+	if err = mt.UnmarshalJSON(data); err != nil {
+		log.Error().Err(err).Msg("error decoding body from json")
+		return metrics.Metrics{}, err
 	}
-	return nil
+	return mt, nil
 }
 
-func (ms *MemStorageUsecase) Init(databaseAddr string, restore bool, fileStoragePath string) {
-	ms.ostream = os.Stdout
-	if databaseAddr == "" {
-		ms.storage = memstorage.MS
-		if restore {
-			if err := ms.readMetricsStorage(fileStoragePath); err != nil {
-				log.Error().Err(err).Msg("error reading metrics storage")
+func (ms MemStorageUsecase) StartBackupRoutine() {
+	go func() {
+		ticker := time.NewTicker(time.Duration(ms.storeInterval) * time.Second)
+		done := make(chan struct{})
+
+		for {
+			select {
+			case <-ticker.C:
+				mt := metrics.Metrics(ms.storage.List(context.TODO()))
+				data, err := mt.MarshalJSON()
+				if err != nil {
+					log.Error().Err(err).Msg("error encoding to json")
+				}
+				if err := ms.backup.Save(context.TODO(), data); err != nil {
+					log.Error().Err(err).Msg("Periodic backup failed")
+				}
+			case <-done:
+				ticker.Stop()
+				return
 			}
 		}
-	} else {
-		db, err := errhandlers.RetriableErrHadler(
-			func() (*sql.DB, error) { return sql.Open("pgx", databaseAddr) },
-			errhandlers.CompareErrSQL,
-		)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to initialize *sql.DB and create a connection pull")
-			return
-		}
-
-		err = errhandlers.RetriableErrHadlerVoid(
-			func() error { return database.CreateTables(db) },
-			errhandlers.CompareErrSQL)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to create tables")
-			return
-		}
-		ms.storage = database.CreateMyDB(db)
-	}
-
-	ostream, err := os.OpenFile(fileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		log.Error().Err(err).Msgf("error opening file %s", fileStoragePath)
-		return
-	}
-	ms.ostream = ostream
+	}()
 }
 
-func (ms *MemStorageUsecase) readMetricsStorage(filename string) error {
-	istream, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0666)
+func (ms MemStorageUsecase) SavingHandler() func(http.Handler) http.Handler {
+	if ms.storeInterval > 0 {
+		return nil
+	}
+
+	return func(fn http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fn.ServeHTTP(w, r)
+			if err := ms.backupMetrics(r.Context()); err != nil {
+				log.Error().Err(err).Msg("Sync backup failed")
+			}
+		})
+	}
+}
+
+func (ms MemStorageUsecase) backupMetrics(ctx context.Context) error {
+	metrics := metrics.Metrics(ms.storage.List(ctx))
+	data, err := metrics.MarshalJSON()
 	if err != nil {
-		log.Error().Err(err).Msgf("error opening file %s", filename)
 		return err
 	}
-
-	istreamInfo, err := istream.Stat()
-	if err != nil {
-		log.Error().Err(err).Msg("error getting istream info")
-		return err
-	}
-
-	data := make([]byte, istreamInfo.Size())
-	_, err = istream.Read(data)
-	if err != nil {
-		log.Error().Err(err).Msg("error reading from istream")
-		return err
-	}
-
-	var allMetrics metrics.Metrics
-	if err := allMetrics.UnmarshalJSON(data); err != nil {
-		log.Error().Err(err).Msg("error decoding data from json")
-		return err
-	}
-	ms.AddMetricsToStorage(context.TODO(), &allMetrics)
-
-	if err := istream.Close(); err != nil {
-		log.Error().Err(err).Msgf("error closing file %s", filename)
-		return err
-	}
-	return nil
+	return ms.backup.Save(ctx, data)
 }

@@ -4,9 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"math/rand"
-	"net/http"
-	"runtime"
 
 	_ "github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
@@ -17,14 +14,32 @@ import (
 	errhandlers "github.com/a-palonskaa/metrics-server/pkg/err_handlers"
 )
 
+// ----------------------MyDB-type----------------------
 type MyDB struct {
 	DB *sql.DB
 }
 
-func CreateMyDB(db *sql.DB) MyDB {
+func NewMyDB(databaseAddr string) (MyDB, bool) {
+	db, err := errhandlers.RetriableErrHadler(
+		func() (*sql.DB, error) { return sql.Open("pgx", databaseAddr) },
+		errhandlers.CompareErrSQL,
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to initialize *sql.DB and create a connection pull")
+		return MyDB{}, false
+	}
+
+	err = errhandlers.RetriableErrHadlerVoid(
+		func() error { return CreateTables(db) },
+		errhandlers.CompareErrSQL)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create tables")
+		return MyDB{}, false
+	}
+
 	return MyDB{
 		DB: db,
-	}
+	}, true
 }
 
 func CreateTables(db *sql.DB) error {
@@ -46,6 +61,7 @@ func CreateTables(db *sql.DB) error {
 	}, errhandlers.CompareErrSQL)
 }
 
+<<<<<<< HEAD
 //----------------------mem-storage interface----------------------
 
 func (db MyDB) IsGaugeAllowed(ctx context.Context, name string) bool {
@@ -197,6 +213,9 @@ func (db MyDB) Get(ctx context.Context, mType, name string) (fmt.Stringer, bool)
 	}
 }
 
+=======
+// ----------------------MemStorageInterface----------------------
+>>>>>>> a77deee (file logic)
 func (db MyDB) Add(ctx context.Context, mType, name string, val fmt.Stringer) {
 	switch mType {
 	case metrics.GaugeName:
@@ -211,6 +230,7 @@ func (db MyDB) Add(ctx context.Context, mType, name string, val fmt.Stringer) {
 	log.Error().Msgf("unallowed type %s", mType)
 }
 
+<<<<<<< HEAD
 func AddCounterTx(ctx context.Context, tx *sql.Tx, name string, val metrics.Counter) {
 	err := errhandlers.RetriableErrHadlerVoid(func() error {
 		_, err := tx.ExecContext(ctx, `
@@ -324,6 +344,20 @@ func (db MyDB) Update(ctx context.Context, memStats *runtime.MemStats) {
 	}, errhandlers.CompareErrSQL)
 	if err != nil {
 		log.Error().Err(err)
+=======
+func (db MyDB) Get(ctx context.Context, mType, name string) (fmt.Stringer, bool) {
+	if ok := db.IsNameAllowed(ctx, mType, name); !ok {
+		return nil, false
+	}
+
+	switch mType {
+	case metrics.GaugeName:
+		return db.GetGaugeValue(ctx, name)
+	case metrics.CounterName:
+		return db.GetCounterValue(ctx, name)
+	default:
+		return nil, false
+>>>>>>> a77deee (file logic)
 	}
 }
 
@@ -386,37 +420,144 @@ func (db MyDB) List(ctx context.Context) []metrics.Metric {
 	}
 }
 
-//SEX
-
-func (db MyDB) AddMetricsToStorage(ctx context.Context, mt *metrics.MetricsS) int {
-	tx, err := errhandlers.RetriableErrHadler(func() (*sql.Tx, error) {
-		return db.DB.Begin()
-	}, errhandlers.CompareErrSQL)
-	if err != nil {
-		log.Error().Err(err)
-		return http.StatusOK
-	}
-
-	for _, metric := range *mt {
-		switch metric.MType {
-		case "gauge":
-			AddGaugeTx(ctx, tx, metric.ID, metrics.Gauge(*metric.Value))
-		case "counter":
-			AddCounterTx(ctx, tx, metric.ID, metrics.Counter(*metric.Delta))
-		default:
-			return http.StatusBadRequest
-		}
-	}
-
-	err = errhandlers.RetriableErrHadlerVoid(func() error {
-		return tx.Commit()
-	}, errhandlers.CompareErrSQL)
-	if err != nil {
-		log.Error().Err(err)
-	}
-	return http.StatusOK
-}
-
 func (db MyDB) Close() error {
 	return db.DB.Close()
+}
+
+// ----------------------MyDB-methods----------------------
+// ------------------is-allowed------------------
+func (db MyDB) IsNameAllowed(ctx context.Context, mType, name string) bool {
+	switch mType {
+	case metrics.GaugeName:
+		return db.IsGaugeAllowed(ctx, name)
+	case metrics.CounterName:
+		return db.IsCounterAllowed(ctx, name)
+	default:
+		log.Error().Msgf("unallowed type %s", mType)
+		return false
+	}
+}
+
+func (db MyDB) IsGaugeAllowed(ctx context.Context, name string) bool {
+	args, err := errhandlers.RetriableErrHadler(func() ([]interface{}, error) {
+		rows, err := db.DB.QueryContext(ctx, "SELECT * FROM GaugeMetrics WHERE ID = $1", name)
+		if err != nil {
+			return []interface{}{nil}, err
+		}
+		if err = rows.Err(); err != nil {
+			log.Error().Err(err).Msg("error in rows")
+		}
+		return []interface{}{rows}, err
+	}, errhandlers.CompareErrSQL)
+	rows, _ := args[0].(*sql.Rows)
+	if err != nil {
+		log.Error().Err(err).Msg("error executing query")
+		return false
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Error().Err(err).Msg("error closing rows")
+		}
+	}()
+
+	if err := rows.Err(); err != nil {
+		log.Error().Err(err).Msg("error in rows")
+		return false
+	}
+	return true
+}
+
+func (db MyDB) IsCounterAllowed(ctx context.Context, name string) bool {
+	rows, err := errhandlers.RetriableErrHadler(func() (*sql.Rows, error) {
+		return db.DB.QueryContext(ctx, "SELECT * FROM CounterMetrics WHERE ID = $1", name)
+	}, errhandlers.CompareErrSQL)
+	if err != nil {
+		log.Error().Err(err).Msg("error executing query")
+		return false
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Error().Err(err).Msg("error closing rows")
+		}
+	}()
+
+	if err := rows.Err(); err != nil {
+		log.Error().Err(err).Msg("error in rows")
+		return false
+	}
+	return true
+}
+
+// ------------------add------------------
+func (db MyDB) AddGauge(ctx context.Context, name string, val metrics.Gauge) {
+	err := errhandlers.RetriableErrHadlerVoid(func() error {
+		_, err := db.DB.ExecContext(ctx, `
+		INSERT INTO GaugeMetrics (ID, Value)
+        VALUES ($1, $2)
+        ON CONFLICT (ID)
+        DO UPDATE SET Value = EXCLUDED.Value
+		`, name, float64(val),
+		)
+		return err
+	}, errhandlers.CompareErrSQL)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to add gauge metric")
+	}
+}
+
+func (db MyDB) AddCounter(ctx context.Context, name string, val metrics.Counter) {
+	err := errhandlers.RetriableErrHadlerVoid(func() error {
+		_, err := db.DB.ExecContext(ctx, `
+		INSERT INTO CounterMetrics (ID, Value)
+        VALUES ($1, $2)
+        ON CONFLICT (ID)
+        DO UPDATE SET Value = CounterMetrics.Value + EXCLUDED.Value
+		`, name, int64(val),
+		)
+		return err
+	}, errhandlers.CompareErrSQL)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to increment counter metric")
+	}
+}
+
+// ------------------get------------------
+func (db MyDB) GetGaugeValue(ctx context.Context, name string) (metrics.Gauge, bool) {
+	row := db.DB.QueryRowContext(ctx, "SELECT Value FROM GaugeMetrics WHERE ID = $1", name)
+	if row == nil {
+		log.Info().Msgf("no gauge val with name %s found", name)
+		return metrics.Gauge(0), false
+	}
+
+	if err := row.Err(); err != nil {
+		log.Error().Err(err).Msg("error in row")
+		return metrics.Gauge(0), false
+	}
+
+	valueGauge := float64(0)
+	if err := row.Scan(&valueGauge); err != nil {
+		log.Error().Err(err).Msg("error scaning row")
+		return metrics.Gauge(0), false
+	}
+	return metrics.Gauge(valueGauge), true
+}
+
+func (db MyDB) GetCounterValue(ctx context.Context, name string) (metrics.Counter, bool) {
+	row := db.DB.QueryRowContext(ctx, "SELECT Value FROM CounterMetrics WHERE ID = $1", name)
+	if row == nil {
+		log.Info().Msgf("no counter val with name %s found", name)
+		return metrics.Counter(0), false
+	}
+
+	if err := row.Err(); err != nil {
+		log.Error().Err(err).Msg("error in row")
+		return metrics.Counter(0), false
+	}
+
+	valueCounter := int64(0)
+	if err := row.Scan(&valueCounter); err != nil {
+		log.Error().Err(err).Msg("error scaning row")
+		return metrics.Counter(0), false
+	}
+	return metrics.Counter(valueCounter), true
 }
