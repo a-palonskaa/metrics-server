@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/rs/zerolog/log"
 
-	logger "github.com/a-palonskaa/metrics-server/internal/logger"
+	logger "github.com/a-palonskaa/metrics-server/pkg/logger"
 )
 
 func main() {

@@ -39,9 +39,8 @@ func WithLogging(fn http.Handler) http.Handler {
 			responseData:   responseData,
 		}
 
-		fn.ServeHTTP(&responseWriter, req)
-
 		log.Info().Str("uri", req.RequestURI).Str("method", req.Method).Msg("request")
+		fn.ServeHTTP(&responseWriter, req)
 		log.Info().Int("status", responseData.status).Int("size", responseData.size).Msg("response")
 	})
 }

@@ -7,23 +7,11 @@ import (
 	"net/http"
 	"runtime"
 
-	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
+	"github.com/rs/zerolog/log"
+
+	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 )
 
-type MemStorage interface {
-	IsGaugeAllowed(ctx context.Context, name string) bool
-	IsCounterAllowed(ctx context.Context, name string) bool
-	IsNameAllowed(ctx context.Context, mType, name string) bool
-	AddGauge(ctx context.Context, name string, val metrics.Gauge)
-	AddCounter(ctx context.Context, name string, val metrics.Counter)
-	GetGaugeValue(ctx context.Context, name string) (metrics.Gauge, bool)
-	GetCounterValue(ctx context.Context, name string) (metrics.Counter, bool)
-	Update(ctx context.Context, memStats *runtime.MemStats)
-	Iterate(ctx context.Context, f func(string, string, fmt.Stringer))
-	AddMetricsToStorage(ctx context.Context, metrics *metrics.MetricsS) int
-}
-
-//easyjson:json
 type MetricsStorage struct {
 	GaugeMetrics   map[string]metrics.Gauge
 	CounterMetrics map[string]metrics.Counter
@@ -44,6 +32,36 @@ var MS = &MetricsStorage{
 		"PauseTotalNs": true, "StackInuse": true, "StackSys": true, "Sys": true, "TotalAlloc": true,
 		"RandomValue": true, "HeapSys": true},
 	AllowedCounterNames: map[string]bool{"PollCount": true},
+}
+
+func (m *MetricsStorage) Database() *sql.DB {
+	return nil
+}
+
+func (m *MetricsStorage) Close() error {
+	return nil
+}
+
+func (m *MetricsStorage) List(ctx context.Context) []metrics.Metric {
+	allMetrics := make([]metrics.Metric, 0, len(m.AllowedGaugeNames)+len(m.AllowedCounterNames))
+	for key, value := range m.GaugeMetrics {
+		val := float64(value)
+		allMetrics = append(allMetrics, metrics.Metric{
+			ID:    key,
+			MType: metrics.GaugeName,
+			Value: &val,
+		})
+	}
+
+	for key, value := range m.CounterMetrics {
+		val := int64(value)
+		allMetrics = append(allMetrics, metrics.Metric{
+			ID:    key,
+			MType: metrics.CounterName,
+			Delta: &val,
+		})
+	}
+	return allMetrics
 }
 
 func (m *MetricsStorage) IsGaugeAllowed(_ context.Context, name string) bool {
@@ -78,7 +96,7 @@ func (m *MetricsStorage) AddCounter(_ context.Context, name string, val metrics.
 	m.CounterMetrics[name] += val
 }
 
-func (m *MetricsStorage) AddValue(_ context.Context, mType, name string, val any) bool {
+func (m *MetricsStorage) Add(_ context.Context, mType, name string, val fmt.Stringer) {
 	switch mType {
 	case metrics.GaugeName:
 		if v, ok := val.(metrics.Gauge); ok {
@@ -108,7 +126,11 @@ func (m *MetricsStorage) GetCounterValue(_ context.Context, name string) (metric
 	return 0, false
 }
 
-func (m *MetricsStorage) GetValue(_ context.Context, mType, name string) (any, bool) {
+func (m *MetricsStorage) Get(_ context.Context, mType, name string) (fmt.Stringer, bool) {
+	if ok := m.IsNameAllowed(context.TODO(), mType, name); !ok {
+		return nil, false
+	}
+
 	switch mType {
 	case metrics.GaugeName:
 		val, ok := m.GetGaugeValue(context.TODO(), name)

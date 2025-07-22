@@ -13,12 +13,18 @@ import (
 	_ "github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 
-	errhandlers "github.com/a-palonskaa/metrics-server/internal/err_handlers"
-	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
+	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
+	errhandlers "github.com/a-palonskaa/metrics-server/pkg/err_handlers"
 )
 
 type MyDB struct {
 	DB *sql.DB
+}
+
+func CreateMyDB(db *sql.DB) MyDB {
+	return MyDB{
+		DB: db,
+	}
 }
 
 func CreateTables(db *sql.DB) error {
@@ -176,6 +182,35 @@ func (db MyDB) GetCounterValue(ctx context.Context, name string) (metrics.Counte
 	return metrics.Counter(valueCounter), true
 }
 
+func (db MyDB) Get(ctx context.Context, mType, name string) (fmt.Stringer, bool) {
+	if ok := db.IsNameAllowed(ctx, mType, name); !ok {
+		return nil, false
+	}
+
+	switch mType {
+	case metrics.GaugeName:
+		return db.GetGaugeValue(ctx, name)
+	case metrics.CounterName:
+		return db.GetCounterValue(ctx, name)
+	default:
+		return nil, false
+	}
+}
+
+func (db MyDB) Add(ctx context.Context, mType, name string, val fmt.Stringer) {
+	switch mType {
+	case metrics.GaugeName:
+		if v, ok := val.(metrics.Gauge); ok {
+			db.AddGauge(ctx, name, v)
+		}
+	case metrics.CounterName:
+		if v, ok := val.(metrics.Counter); ok {
+			db.AddCounter(ctx, name, v)
+		}
+	}
+	log.Error().Msgf("unallowed type %s", mType)
+}
+
 func AddCounterTx(ctx context.Context, tx *sql.Tx, name string, val metrics.Counter) {
 	err := errhandlers.RetriableErrHadlerVoid(func() error {
 		_, err := tx.ExecContext(ctx, `
@@ -292,7 +327,9 @@ func (db MyDB) Update(ctx context.Context, memStats *runtime.MemStats) {
 	}
 }
 
-func (db MyDB) Iterate(ctx context.Context, f func(string, string, fmt.Stringer)) {
+func (db MyDB) List(ctx context.Context) []metrics.Metric {
+	var allMetrics []metrics.Metric
+
 	rowsGauge, err := errhandlers.RetriableErrHadler(func() (*sql.Rows, error) {
 		return db.DB.QueryContext(ctx, "SELECT ID, Value FROM GaugeMetrics")
 	}, errhandlers.CompareErrSQL)
@@ -378,4 +415,8 @@ func (db MyDB) AddMetricsToStorage(ctx context.Context, mt *metrics.MetricsS) in
 		log.Error().Err(err)
 	}
 	return http.StatusOK
+}
+
+func (db MyDB) Close() error {
+	return db.DB.Close()
 }

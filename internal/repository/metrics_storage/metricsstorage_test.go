@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
+	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 )
 
 //----------------------Test-MemStorage-Methods----------------------
