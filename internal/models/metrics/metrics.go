@@ -11,7 +11,11 @@ const GaugeName = "gauge"
 const CounterName = "counter"
 
 func (val Gauge) String() string {
-	return strconv.FormatFloat(float64(val), 'f', 1, 64)
+	s := strconv.FormatFloat(float64(val), 'f', -1, 64)
+	if s == strconv.Itoa(int(val)) {
+		s += "."
+	}
+	return s
 }
 
 func (val Counter) String() string {
