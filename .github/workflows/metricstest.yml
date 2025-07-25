@@ -18,7 +18,7 @@ jobs:
 
   metricstest:
     runs-on: ubuntu-latest
-    container: golang:1.22.12
+    container: golang:1.24.4
     needs: branchtest
 
     services:
@@ -135,7 +135,6 @@ jobs:
           github.head_ref == 'iter23' ||
           github.head_ref == 'iter24'
         run: |
-          cmd/server/server      \
           metricstest -test.v -test.run=^TestIteration2[AB]*$ \
             -source-path=. \
             -agent-binary-path=cmd/agent/agent  \
