@@ -16,6 +16,7 @@ type Config struct {
 	EndpointAddr   string `env:"ADDRESS"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
+	Key            string `env:"KEY"`
 }
 
 var Flags Config
@@ -24,34 +25,36 @@ func setFlags(cfg *Config) {
 	if cfg.EndpointAddr != "" {
 		Flags.EndpointAddr = cfg.EndpointAddr
 	}
+
 	if cfg.PollInterval != 0 {
 		Flags.PollInterval = cfg.PollInterval
 	}
+
 	if cfg.ReportInterval != 0 {
 		Flags.ReportInterval = cfg.PollInterval
+	}
+
+	if cfg.Key != "" {
+		Flags.Key = cfg.Key
 	}
 }
 
 func validateFlags() {
 	if Flags.PollInterval <= 0 || Flags.ReportInterval <= 0 {
-		log.Error().Msgf("Error: PollInterval & ReportInterval must be greater than 0")
-		return
+		log.Fatal().Msgf("Error: PollInterval & ReportInterval must be greater than 0")
 	}
 
 	_, portStr, err := net.SplitHostPort(Flags.EndpointAddr)
 	if err != nil {
-		log.Error().Msgf("invalid address format: %s", err)
-		return
+		log.Fatal().Msgf("invalid address format: %s", err)
 	}
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		log.Error().Msgf("port must be a number: %s", err)
-		return
+		log.Fatal().Msgf("port must be a number: %s", err)
 	}
 
 	if port < minPort || port > maxPort {
-		log.Error().Msgf("port must be between %d and %d", minPort, maxPort)
-		return
+		log.Fatal().Msgf("port must be between %d and %d", minPort, maxPort)
 	}
 }

@@ -49,23 +49,27 @@ const htmlTemplate = `
 type Params struct {
 	MsUsecase   usecase.MemStorage
 	PingUsecase usecase.Ping
+	Key         string
 }
 
 type ServerHandler struct {
 	msUsecase   usecase.MemStorage
 	pingUsecase usecase.Ping
+	key         string
 }
 
 func New(p Params) ServerHandler {
 	return ServerHandler{
 		msUsecase:   p.MsUsecase,
 		pingUsecase: p.PingUsecase,
+		key:         p.Key,
 	}
 }
 
 func (h ServerHandler) Router(r *chi.Mux) *chi.Mux {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
+	r.Use(CheckHash(h.key))
 
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", h.Root)

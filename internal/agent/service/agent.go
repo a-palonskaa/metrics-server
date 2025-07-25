@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
@@ -24,11 +27,11 @@ func NewHandler(storage usecase.MetricsRepository) AgentHandler {
 	}
 }
 
-func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string) {
+func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string, key string) {
 	err := errhandler.RetriableErrHadlerVoid(
 		func() error {
 			body := h.msUsecase.ListAllMetrics(ctx)
-			return h.SendRequest(client, endpointAddr, body)
+			return h.SendRequest(client, endpointAddr, body, key)
 		}, errhandler.CompareErrAgent)
 	if err != nil {
 		log.Error().Err(err).Msg("error sending metrics")
@@ -41,7 +44,7 @@ func (h AgentHandler) Update(ctx context.Context) {
 	}
 }
 
-func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body metrics.Metrics) error {
+func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body metrics.Metrics, key string) error {
 	if len(body) == 0 {
 		return nil
 	}
@@ -63,12 +66,21 @@ func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body me
 		return fmt.Errorf("failed to close gzip Writer: %v", err)
 	}
 
-	_, err = client.SetBaseURL("http://"+endpoint).R().
+	req := client.SetBaseURL("http://"+endpoint).R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept-Encoding", "gzip").
 		SetHeader("Content-Encoding", "gzip").
-		SetBody(buf.Bytes()).
-		Post("/updates/")
+		SetBody(buf.Bytes())
+
+	if key != "" {
+		h := hmac.New(sha256.New, []byte(key))
+		h.Write(jsonData)
+		dst := h.Sum(nil)
+		hashHex := hex.EncodeToString(dst)
+		req.SetHeader("HashSHA256", hashHex)
+	}
+
+	_, err = req.Post("/updates/")
 	if err != nil {
 		log.Error().Err(err).Msgf("failed to send request w metrics update to server %s", endpoint)
 		return fmt.Errorf("failed to send request w metrics update to server: %v", err)

@@ -95,7 +95,7 @@ func TestSendRequest(t *testing.T) {
 	handler := agent.NewHandler(memstorage.New())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := handler.SendRequest(tt.args.client, tt.args.endpoint, tt.args.body)
+			err := handler.SendRequest(tt.args.client, tt.args.endpoint, tt.args.body, "")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
 			}
