@@ -20,8 +20,38 @@ func NewFileBackup(path string) FileBackup {
 	return FileBackup{file: file}
 }
 
-func (fb FileBackup) Load(_ context.Context) ([]byte, error) {
-	istreamInfo, err := fb.file.Stat()
+func (fs FileStorage) Add(ctx context.Context, metric metrics.Metric) error {
+	if err := fs.storage.Add(ctx, metric); err != nil {
+		log.Error().Err(err).Msg("failed to add metric")
+		return err
+	}
+
+	if err := fs.Save(ctx); err != nil {
+		log.Error().Err(err).Msg("backup failed")
+		return err
+	}
+	return nil
+}
+
+func (fs FileStorage) Get(ctx context.Context, mType, name string) (metrics.Metric, error) {
+	metric, err := fs.storage.Get(ctx, mType, name)
+	if err != nil {
+		log.Error().Err(err).Msgf("failed to get metric type:%s, name:%s", mType, name)
+		return metrics.Metric{}, err
+	}
+	return metric, nil
+}
+
+func (fs FileStorage) List(ctx context.Context) []metrics.Metric {
+	return fs.storage.List(ctx)
+}
+
+func (fs FileStorage) Close() error {
+	return errors.Join(fs.storage.Close(), fs.file.Close())
+}
+
+func (fs FileStorage) Load(_ context.Context) ([]byte, error) {
+	istreamInfo, err := fs.file.Stat()
 	if err != nil {
 		log.Error().Err(err).Msg("error getting istream info")
 		return make([]byte, 0), err

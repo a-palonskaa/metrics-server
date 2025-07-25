@@ -27,4 +27,44 @@ type Metrics struct {
 }
 
 //easyjson:json
-type MetricsS []Metrics
+type Metrics []Metric
+
+func NewMetrics(id string, mType string, val string) (Metric, error) {
+	switch mType {
+	case GaugeName:
+		v, err := strconv.ParseFloat(val, 64)
+		if err != nil {
+			return Metric{}, ErrIncorrectMetricValue
+		}
+		gauge := float64(v)
+		return Metric{
+			ID:    id,
+			MType: mType,
+			Value: &gauge,
+		}, nil
+	case CounterName:
+		v, err := strconv.Atoi(val)
+		if err != nil {
+			return Metric{}, ErrIncorrectMetricValue
+		}
+		counter := int64(v)
+		return Metric{
+			ID:    id,
+			MType: mType,
+			Delta: &counter,
+		}, nil
+	default:
+		return Metric{}, ErrIncorrectMetricType
+	}
+}
+
+func IsTypeAllowed(mType string) bool {
+	return mType == GaugeName || mType == CounterName
+}
+
+func (m Metric) StrValue() string {
+	if m.Delta != nil {
+		return Counter(*m.Delta).String()
+	}
+	return Gauge(*m.Value).String()
+}

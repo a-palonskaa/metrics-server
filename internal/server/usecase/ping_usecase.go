@@ -2,43 +2,31 @@ package usecase
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
 	"github.com/rs/zerolog/log"
 
-	errhandlers "github.com/a-palonskaa/metrics-server/pkg/err_handlers"
+	repo "github.com/a-palonskaa/metrics-server/internal/repository"
 )
 
 var (
-	ErrDBNotInitialized = errors.New("database does not exist")
+	ErrConnNotInitialized = errors.New("connector does not exist")
 )
 
-type PingUsecaseInterface interface {
-	Ping(ctx context.Context) error
+type Ping struct {
+	conn repo.Connector
 }
 
-type PingUsecase struct {
-	db *sql.DB
-}
-
-func NewPingUsecase(databaseAddr string) PingUsecase {
-	db, err := errhandlers.RetriableErrHadler(
-		func() (*sql.DB, error) { return sql.Open("pgx", databaseAddr) },
-		errhandlers.CompareErrSQL,
-	)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to initialize *sql.DB and create a connection pull")
-		db = nil
-	}
-	return PingUsecase{
-		db: db,
+func NewPing(conn repo.Connector) Ping {
+	return Ping{
+		conn: conn,
 	}
 }
 
-func (pu PingUsecase) Ping(ctx context.Context) error {
-	if pu.db == nil {
-		return ErrDBNotInitialized
+func (pu Ping) Ping(ctx context.Context) error {
+	if pu.conn == nil {
+		log.Error().Msg("connecot is not initialized")
+		return ErrConnNotInitialized
 	}
-	return pu.db.PingContext(ctx)
+	return pu.conn.Ping(ctx)
 }

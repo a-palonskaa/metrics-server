@@ -24,7 +24,10 @@ import (
 	file "github.com/a-palonskaa/metrics-server/internal/repository/file"
 	service "github.com/a-palonskaa/metrics-server/internal/server/service"
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
+<<<<<<< HEAD
 >>>>>>> a77deee (file logic)
+=======
+>>>>>>> a83d27f (naming+html template)
 )
 
 func init() {
@@ -59,6 +62,7 @@ var cmd = &cobra.Command{
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+<<<<<<< HEAD
 		memStorage := repo.NewMemStorage(Flags.DatabaseAddr)
 		backupStorage := file.NewFileBackup(Flags.FileStoragePath)
 
@@ -66,6 +70,15 @@ var cmd = &cobra.Command{
 		pingUsecase := usecase.NewPingUsecase(Flags.DatabaseAddr)
 
 		serverHandler := service.NewHandler(msUsecase, pingUsecase)
+=======
+		repoParams := repo.NewParams{
+			DatabaseAddr:  Flags.DatabaseAddr,
+			FilePath:      Flags.FileStoragePath,
+			StoreInterval: Flags.StoreInterval,
+			Restore:       Flags.Restore,
+		}
+		memStorage := repo.New(repoParams)
+>>>>>>> a83d27f (naming+html template)
 		defer func() {
 			if err := serverHandler.Close(); err != nil {
 				log.Error().Err(err).Msg("error closing handler")
@@ -73,8 +86,18 @@ var cmd = &cobra.Command{
 			}
 		}()
 
+<<<<<<< HEAD
+=======
+		connector := conn.New(Flags.DatabaseAddr)
+
+		msUsecase := usecase.NewMemStorage(memStorage)
+		pingUsecase := usecase.NewPing(connector)
+
+		serverHandler := service.New(msUsecase, pingUsecase)
+
+>>>>>>> a83d27f (naming+html template)
 		r := chi.NewRouter()
-		r = serverHandler.RouteRequests(r)
+		r = serverHandler.Router(r)
 
 		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
 			log.Fatal().Msgf("error loading server: %s", err)
