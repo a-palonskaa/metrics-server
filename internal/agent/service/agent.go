@@ -49,6 +49,7 @@ func (h AgentHandler) UpdateRuntimeMetrics(ctx context.Context) {
 	if err := h.msUsecase.UpdateMetrics(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to update metrics")
 	}
+	log.Info().Msg("send metrics successfully")
 }
 
 func (h AgentHandler) UpdateSystemMetrics(ctx context.Context) {
