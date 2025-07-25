@@ -125,7 +125,7 @@ func TestPostHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	RouteRequests(r)
+	RouteRequests(r, nil)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -219,7 +219,7 @@ func TestGeneralCaseHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	RouteRequests(r)
+	RouteRequests(r, nil)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -266,7 +266,7 @@ func TestAllValueHandler(t *testing.T) {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 
-	RouteRequests(r)
+	RouteRequests(r, nil)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

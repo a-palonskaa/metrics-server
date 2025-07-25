@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"io"
@@ -17,10 +18,11 @@ import (
 )
 
 // ----------------------router----------------------
-func RouteRequests(r chi.Router) {
+func RouteRequests(r chi.Router, db *sql.DB) {
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", RootGetHandler)
 		r.Route("/", func(r chi.Router) {
+			r.Get("/ping", PingHandler(db))
 			r.Post("/value/", PostJSONValueHandler)
 			r.Get("/value/", AllValueHandler)
 			r.Get("/value/{mType}/{name}", GetHandler)
@@ -30,7 +32,19 @@ func RouteRequests(r chi.Router) {
 	})
 }
 
+// ----------------------db-connection----------------------
+func PingHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := db.Ping(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
 //----------------------post-request-handlers----------------------
+
 func PostHandler(w http.ResponseWriter, req *http.Request) {
 	mType := chi.URLParam(req, "mType")
 	name := chi.URLParam(req, "name")
@@ -141,6 +155,7 @@ func PostJSONUpdateHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 //----------------------get-request-handlers----------------------
+
 func GetHandler(w http.ResponseWriter, req *http.Request) {
 	mType := chi.URLParam(req, "mType")
 	name := chi.URLParam(req, "name")

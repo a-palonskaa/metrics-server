@@ -1,12 +1,16 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
 	"os"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/fatih/color"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
+	_ "github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
@@ -19,6 +23,7 @@ func init() {
 	cmd.PersistentFlags().IntVarP(&Flags.StoreInterval, "i", "i", 300, "Saving server data interval")
 	cmd.PersistentFlags().BoolVarP(&Flags.Restore, "r", "r", true, "Saving or not data saved before")
 	cmd.PersistentFlags().StringVarP(&Flags.FileStoragePath, "f", "f", "server-data.txt", "Filepath")
+	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "localhost:5432", "Database filepath") //LINK
 }
 
 var cmd = &cobra.Command{
@@ -45,6 +50,17 @@ var cmd = &cobra.Command{
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		db, err := sql.Open("pgx", Flags.DatabaseAddr)
+		log.Info().Msg(Flags.DatabaseAddr)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize *sql.DB and create a connection pull")
+		}
+		defer func() {
+			if err := db.Close(); err != nil {
+				log.Fatal().Err(err)
+			}
+		}()
+
 		istream, err := os.OpenFile(Flags.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 		if err != nil {
 			log.Fatal().Err(err)
@@ -81,7 +97,7 @@ var cmd = &cobra.Command{
 			memstorage.RunSavingStorageRoutine(ostream, Flags.StoreInterval)
 		}
 
-		server_handler.RouteRequests(r)
+		server_handler.RouteRequests(r, db)
 
 		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
 			log.Fatal().Msgf("error loading server: %s", err)
