@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
+	database "github.com/a-palonskaa/metrics-server/internal/database"
 	server_handler "github.com/a-palonskaa/metrics-server/internal/handlers/server"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
 )
@@ -23,7 +24,7 @@ func init() {
 	cmd.PersistentFlags().IntVarP(&Flags.StoreInterval, "i", "i", 300, "Saving server data interval")
 	cmd.PersistentFlags().BoolVarP(&Flags.Restore, "r", "r", true, "Saving or not data saved before")
 	cmd.PersistentFlags().StringVarP(&Flags.FileStoragePath, "f", "f", "server-data.txt", "Filepath")
-	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "localhost:5432", "Database filepath") //LINK
+	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "", "Database filepath")
 }
 
 var cmd = &cobra.Command{
@@ -50,6 +51,9 @@ var cmd = &cobra.Command{
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		var ms memstorage.MemStorage
+		var db *sql.DB
+
 		db, err := sql.Open("pgx", Flags.DatabaseAddr)
 		log.Info().Msg(Flags.DatabaseAddr)
 		if err != nil {
@@ -60,6 +64,17 @@ var cmd = &cobra.Command{
 				log.Fatal().Err(err)
 			}
 		}()
+
+		if Flags.DatabaseAddr != "" {
+			if err := database.CreateTables(db); err != nil {
+				log.Fatal().Err(err)
+			}
+			var myDB database.MyDB
+			myDB.DB = db
+			ms = myDB
+		} else {
+			ms = memstorage.MS
+		}
 
 		istream, err := os.OpenFile(Flags.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 		if err != nil {
@@ -97,7 +112,7 @@ var cmd = &cobra.Command{
 			memstorage.RunSavingStorageRoutine(ostream, Flags.StoreInterval)
 		}
 
-		server_handler.RouteRequests(r, db)
+		server_handler.RouteRequests(r, db, ms)
 
 		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
 			log.Fatal().Msgf("error loading server: %s", err)

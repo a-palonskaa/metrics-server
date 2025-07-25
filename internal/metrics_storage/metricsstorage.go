@@ -8,6 +8,18 @@ import (
 	metrics "github.com/a-palonskaa/metrics-server/internal/metrics"
 )
 
+type MemStorage interface {
+	IsGaugeAllowed(name string) bool
+	IsCounterAllowed(name string) bool
+	IsNameAllowed(mType, name string) bool
+	AddGauge(name string, val metrics.Gauge)
+	AddCounter(name string, val metrics.Counter)
+	GetGaugeValue(name string) (metrics.Gauge, bool)
+	GetCounterValue(name string) (metrics.Counter, bool)
+	Update(memStats *runtime.MemStats)
+	Iterate(f func(string, string, fmt.Stringer))
+}
+
 //easyjson:json
 type MetricsStorage struct {
 	GaugeMetrics   map[string]metrics.Gauge
