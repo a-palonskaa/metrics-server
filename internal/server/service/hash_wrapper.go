@@ -2,13 +2,13 @@ package server
 
 import (
 	"bytes"
-	"crypto/hmac"
-	"crypto/sha256"
 	"encoding/hex"
 	"io"
 	"net/http"
 
 	"github.com/rs/zerolog/log"
+
+	hash "github.com/a-palonskaa/metrics-server/pkg/hash"
 )
 
 type hashResponseWriter struct {
@@ -39,12 +39,11 @@ func CheckHash(key string) func(fn http.Handler) http.Handler {
 				}
 				r.Body = io.NopCloser(bytes.NewBuffer(body))
 
-				h := hmac.New(sha256.New, []byte(key))
-				h.Write(body)
-				dst := h.Sum(nil)
-				hashExpect := hex.EncodeToString(dst)
-
-				if hashExpect != hashStr {
+				expectedHash, err := hex.DecodeString(hashStr)
+				if err != nil {
+					log.Error().Err(err).Msg("failed to decode string")
+				}
+				if hash.Verify([]byte(key), body, []byte(expectedHash)) {
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
@@ -52,11 +51,11 @@ func CheckHash(key string) func(fn http.Handler) http.Handler {
 				myWriter := &hashResponseWriter{ResponseWriter: w, bufer: make([]byte, 0)}
 				fn.ServeHTTP(myWriter, r)
 
-				h = hmac.New(sha256.New, []byte(key))
-				h.Write(myWriter.bufer)
-				hash := hex.EncodeToString(h.Sum(nil))
-
-				w.Header().Set("HashSHA256", hash)
+				dst, err := hash.Calculate([]byte(key), myWriter.bufer)
+				if err != nil {
+					log.Error().Err(err).Msg("failed to calculate hash")
+				}
+				w.Header().Set("HashSHA256", hex.EncodeToString(dst))
 				return
 			}
 			fn.ServeHTTP(w, r)

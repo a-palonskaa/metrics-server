@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 
@@ -15,6 +13,7 @@ import (
 	usecase "github.com/a-palonskaa/metrics-server/internal/agent/usecase"
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	errhandler "github.com/a-palonskaa/metrics-server/pkg/err_handlers"
+	hash "github.com/a-palonskaa/metrics-server/pkg/hash"
 )
 
 type AgentHandler struct {
@@ -73,11 +72,11 @@ func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body me
 		SetBody(buf.Bytes())
 
 	if key != "" {
-		h := hmac.New(sha256.New, []byte(key))
-		h.Write(jsonData)
-		dst := h.Sum(nil)
-		hashHex := hex.EncodeToString(dst)
-		req.SetHeader("HashSHA256", hashHex)
+		dst, err := hash.Calculate([]byte(key), jsonData)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to calculate hash")
+		}
+		req.SetHeader("HashSHA256", hex.EncodeToString(dst))
 	}
 
 	_, err = req.Post("/updates/")
