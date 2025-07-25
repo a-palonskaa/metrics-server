@@ -1,9 +1,7 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
-	"os"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/fatih/color"
@@ -14,9 +12,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	database "github.com/a-palonskaa/metrics-server/internal/database"
-	server_handler "github.com/a-palonskaa/metrics-server/internal/handlers/server"
-	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
+	repo "github.com/a-palonskaa/metrics-server/internal/repository"
+	database "github.com/a-palonskaa/metrics-server/internal/repository/database"
+	service "github.com/a-palonskaa/metrics-server/internal/server/service"
+	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 )
 
 func init() {
@@ -44,78 +43,43 @@ var cmd = &cobra.Command{
 	PreRun: func(cmd *cobra.Command, args []string) {
 		var cfg Config
 		if err := env.Parse(&cfg); err != nil {
-			log.Fatal().Msgf("environment variables parsing error\n")
+			log.Error().Msg("environment variables parsing error\n")
+			return
 		}
 
 		setFlags(&cfg)
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		var ms memstorage.MemStorage
-		var db *sql.DB
-
-		db, err := sql.Open("pgx", Flags.DatabaseAddr)
-		log.Info().Msg(Flags.DatabaseAddr)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize *sql.DB and create a connection pull")
-		}
+		memStorage := repo.New(repo.NewParams{
+			DatabaseAddr:  Flags.DatabaseAddr,
+			FilePath:      Flags.FileStoragePath,
+			StoreInterval: Flags.StoreInterval,
+			Restore:       Flags.Restore,
+		})
 		defer func() {
-			if err := db.Close(); err != nil {
-				log.Fatal().Err(err)
+			if err := memStorage.Close(); err != nil {
+				log.Error().Err(err).Msg("error closing memStorage")
+				return
 			}
 		}()
 
-		if Flags.DatabaseAddr != "" {
-			if err := database.CreateTables(db); err != nil {
-				log.Fatal().Err(err)
-			}
-			var myDB database.MyDB
-			myDB.DB = db
-			ms = myDB
-		} else {
-			ms = memstorage.MS
-		}
+		connector := database.NewConn(Flags.DatabaseAddr)
 
-		istream, err := os.OpenFile(Flags.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
-		if err != nil {
-			log.Fatal().Err(err)
-		}
+		msUsecase := usecase.NewMemStorage(memStorage)
+		pingUsecase := usecase.NewPing(connector)
 
-		if Flags.Restore {
-			if err := memstorage.ReadMetricsStorage(istream); err != nil {
-				log.Fatal().Err(err)
-			}
-		}
-
-		if err := istream.Close(); err != nil {
-			log.Error().Err(err)
-		}
-
-		ostream, err := os.OpenFile(Flags.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-		if err != nil {
-			log.Fatal().Err(err)
-		}
-		defer func() {
-			if err := ostream.Close(); err != nil {
-				log.Error().Err(err)
-			}
-		}()
+		serverHandler := service.New(service.Params{
+			MsUsecase:   msUsecase,
+			PingUsecase: pingUsecase,
+		})
 
 		r := chi.NewRouter()
-
-		r.Use(server_handler.WithCompression)
-		r.Use(server_handler.WithLogging)
-
-		if Flags.StoreInterval == 0 {
-			r.Use(server_handler.MakeSavingHandler(ostream))
-		} else {
-			memstorage.RunSavingStorageRoutine(ostream, Flags.StoreInterval)
-		}
-
-		server_handler.RouteRequests(r, db, ms)
+		r = serverHandler.Router(r)
 
 		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
-			log.Fatal().Msgf("error loading server: %s", err)
+			log.Error().Msgf("error loading server: %s", err)
+			return
 		}
 	},
 }

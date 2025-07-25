@@ -28,17 +28,16 @@ func WithCompression(fn http.Handler) http.Handler {
 			}
 			defer func() {
 				if err := gz.Close(); err != nil {
-					log.Fatal().Err(err)
+					log.Error().Err(err).Msg("error closing griz reader")
+					return
 				}
 			}()
 			r.Body = gz
 		}
-
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			fn.ServeHTTP(w, r)
 			return
 		}
-
 		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to create gzip writer")
@@ -47,10 +46,10 @@ func WithCompression(fn http.Handler) http.Handler {
 		}
 		defer func() {
 			if err := gz.Close(); err != nil {
-				log.Fatal().Err(err)
+				log.Error().Err(err).Msg("error closing griz writer")
+				return
 			}
 		}()
-
 		w.Header().Set("Content-Encoding", "gzip")
 		fn.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: gz}, r)
 	})

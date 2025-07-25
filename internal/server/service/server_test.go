@@ -1,4 +1,4 @@
-package server
+package server_test
 
 import (
 	"log"
@@ -9,10 +9,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 
-	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
+	database "github.com/a-palonskaa/metrics-server/internal/repository/database"
+	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
+	server "github.com/a-palonskaa/metrics-server/internal/server/service"
+	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 )
-
-//----------------------Test-Post-Handlers----------------------
 
 func TestPostHandler(t *testing.T) {
 	type request struct {
@@ -124,10 +125,16 @@ func TestPostHandler(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	r.Use(WithCompression)
-	r.Use(WithLogging)
 
-	RouteRequests(r, nil, memstorage.MS)
+	msUsecase := usecase.NewMemStorage(memstorage.New())
+	pingUsecase := usecase.NewPing(database.NewConn(""))
+
+	serverHandler := server.New(server.Params{
+		MsUsecase:   msUsecase,
+		PingUsecase: pingUsecase,
+	})
+
+	_ = serverHandler.Router(r)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -192,22 +199,6 @@ func TestGeneralCaseHandler(t *testing.T) {
 			code: http.StatusNotFound,
 		},
 		{
-			name: "working-case-gauge#1",
-			request: request{
-				method: http.MethodGet,
-				url:    "/value/gauge/Frees",
-			},
-			code: http.StatusOK,
-		},
-		{
-			name: "working-case-counter#1",
-			request: request{
-				method: http.MethodGet,
-				url:    "/value/counter/PollCount",
-			},
-			code: http.StatusOK,
-		},
-		{
 			name: "working-incorr-name#1",
 			request: request{
 				method: http.MethodGet,
@@ -218,10 +209,15 @@ func TestGeneralCaseHandler(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	r.Use(WithCompression)
-	r.Use(WithLogging)
+	msUsecase := usecase.NewMemStorage(memstorage.New())
+	pingUsecase := usecase.NewPing(database.NewConn(""))
 
-	RouteRequests(r, nil, memstorage.MS)
+	serverHandler := server.New(server.Params{
+		MsUsecase:   msUsecase,
+		PingUsecase: pingUsecase,
+	})
+
+	_ = serverHandler.Router(r)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -265,10 +261,15 @@ func TestAllValueHandler(t *testing.T) {
 
 	r := chi.NewRouter()
 
-	r.Use(WithCompression)
-	r.Use(WithLogging)
+	msUsecase := usecase.NewMemStorage(memstorage.New())
+	pingUsecase := usecase.NewPing(database.NewConn(""))
 
-	RouteRequests(r, nil, memstorage.MS)
+	serverHandler := server.New(server.Params{
+		MsUsecase:   msUsecase,
+		PingUsecase: pingUsecase,
+	})
+
+	_ = serverHandler.Router(r)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

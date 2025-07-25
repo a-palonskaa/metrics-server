@@ -1,7 +1,10 @@
 package main
 
 import (
-	"runtime"
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -10,8 +13,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	agent_handler "github.com/a-palonskaa/metrics-server/internal/handlers/agent"
-	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
+	agent_handler "github.com/a-palonskaa/metrics-server/internal/agent/service"
+	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
 )
 
 func init() {
@@ -38,34 +41,37 @@ var Cmd = &cobra.Command{
 		var cfg Config
 		err := env.Parse(&cfg)
 		if err != nil {
-			log.Fatal().Msgf("environment variables parsing error")
+			log.Error().Msgf("environment variables parsing error")
+			return
 		}
 
 		setFlags(&cfg)
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		memStats := &runtime.MemStats{}
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
 		client := resty.New()
 
-		backoffScedule := []time.Duration{
-			100 * time.Millisecond,
-			500 * time.Millisecond,
-			1 * time.Second,
-		}
+		handler := agent_handler.NewHandler(memstorage.New())
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
 		tickerUpdate := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
 		defer tickerUpdate.Stop()
 		tickerSend := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
 		defer tickerSend.Stop()
 
-		sendMetrics := agent_handler.MakeSendMetricsFunc(client, Flags.EndpointAddr, backoffScedule)
 		for {
 			select {
 			case <-tickerUpdate.C:
-				memstorage.MS.Update(memStats)
+				handler.Update(ctx)
 			case <-tickerSend.C:
-				sendMetrics()
+				handler.SendMetrics(ctx, client, Flags.EndpointAddr)
+			case <-sig:
+				return
 			}
 		}
 	},
