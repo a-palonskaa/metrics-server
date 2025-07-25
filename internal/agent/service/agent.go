@@ -43,6 +43,12 @@ func (h AgentHandler) Update(ctx context.Context) {
 	}
 }
 
+func (h AgentHandler) UpdateSys(ctx context.Context) {
+	if err := h.msUsecase.UpdateSysMetrics(ctx); err != nil {
+		log.Error().Err(err).Msg("failed to update metrics")
+	}
+}
+
 func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body metrics.Metrics, key string) error {
 	if len(body) == 0 {
 		return nil

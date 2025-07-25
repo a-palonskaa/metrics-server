@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"sync"
 
 	_ "github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
@@ -14,17 +15,18 @@ import (
 )
 
 type DBStorage struct {
+	mu sync.RWMutex
 	DB *sql.DB
 }
 
-func New(databaseAddr string) (DBStorage, bool) {
+func New(databaseAddr string) (*DBStorage, bool) {
 	db, err := errhandlers.RetriableErrHadler(
 		func() (*sql.DB, error) { return sql.Open("pgx", databaseAddr) },
 		errhandlers.CompareErrSQL,
 	)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to initialize *sql.DB and create a connection pull")
-		return DBStorage{}, false
+		return nil, false
 	}
 
 	err = errhandlers.RetriableErrHadlerVoid(
@@ -32,10 +34,10 @@ func New(databaseAddr string) (DBStorage, bool) {
 		errhandlers.CompareErrSQL)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to create tables")
-		return DBStorage{}, false
+		return nil, false
 	}
 
-	return DBStorage{
+	return &DBStorage{
 		DB: db,
 	}, true
 }
@@ -55,7 +57,10 @@ func CreateTables(db *sql.DB) error {
 	}, errhandlers.CompareErrSQL)
 }
 
-func (db DBStorage) Update(ctx context.Context, metric metrics.Metrics) error {
+func (db *DBStorage) Update(ctx context.Context, metric metrics.Metrics) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
 	tx, err := db.DB.Begin()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to load transaction")
@@ -80,7 +85,10 @@ func (db DBStorage) Update(ctx context.Context, metric metrics.Metrics) error {
 	return nil
 }
 
-func (db DBStorage) Get(ctx context.Context, mType, name string) (metrics.Metric, error) {
+func (db *DBStorage) Get(ctx context.Context, mType, name string) (metrics.Metric, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
 	row := db.DB.QueryRowContext(ctx, `
 		SELECT MType, Delta, Value FROM Metrics WHERE ID = $1
 	`, name)
@@ -112,7 +120,10 @@ func (db DBStorage) Get(ctx context.Context, mType, name string) (metrics.Metric
 	return metric, nil
 }
 
-func (db DBStorage) List(ctx context.Context) []metrics.Metric {
+func (db *DBStorage) List(ctx context.Context) []metrics.Metric {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
 	var allMetrics []metrics.Metric
 
 	rows, err := db.DB.QueryContext(ctx, `SELECT ID, MType, Delta, Value FROM Metrics`)
@@ -151,7 +162,7 @@ func (db DBStorage) List(ctx context.Context) []metrics.Metric {
 	return allMetrics
 }
 
-func (db DBStorage) Close() error {
+func (db *DBStorage) Close() error {
 	return db.DB.Close()
 }
 

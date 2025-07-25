@@ -24,7 +24,7 @@ func init() {
 	cmd.PersistentFlags().BoolVarP(&Flags.Restore, "r", "r", true, "Saving or not data saved before")
 	cmd.PersistentFlags().StringVarP(&Flags.FileStoragePath, "f", "f", "server-data.txt", "Filepath")
 	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "", "Database filepath")
-	cmd.PersistentFlags().StringVarP(&Flags.Key, "key", "k", "", "Key for hash")
+	cmd.PersistentFlags().StringVarP(&Flags.Key, "k", "k", "", "Key for hash")
 }
 
 var cmd = &cobra.Command{

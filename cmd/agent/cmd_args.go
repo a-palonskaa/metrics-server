@@ -22,11 +22,12 @@ func init() {
 	cmd.PersistentFlags().IntVarP(&Flags.PollInterval, "pollinterval", "p", 2, "Metrics polling interval")
 	cmd.PersistentFlags().IntVarP(&Flags.ReportInterval, "reportinterval", "r", 10, "Metrics reporting interval")
 	cmd.PersistentFlags().StringVarP(&Flags.Key, "key", "k", "", "Key for hash")
+	cmd.PersistentFlags().IntVarP(&Flags.RateLimit, "limit", "l", 0, "Limit for requests amount")
 }
 
 var cmd = &cobra.Command{
 	Use:   "agent",
-	Short: "agent that send runtime metrics to server",
+	Short: "agent that sendTicker runtime metrics to server",
 	Long: color.New(color.FgGreen).Sprint(`
          █████╗  ██████╗ ███████╗███╗   ██╗████████╗
         ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝
@@ -34,7 +35,7 @@ var cmd = &cobra.Command{
         ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║
         ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║
         ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝`+"\n\n"+
-		"\tagent that send runtime metrics to server") + "\n\n" +
+		"\tagent that sendTicker runtime metrics to server") + "\n\n" +
 		"\t\x1b]8;;https://github.com/aliffka\x1b\\" +
 		color.New(color.FgCyan).Sprint("@aliffka") +
 		"\t\x1b]8;;\x1b\\",
@@ -60,20 +61,45 @@ var cmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		tickerUpdate := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
-		defer tickerUpdate.Stop()
-		tickerSend := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
-		defer tickerSend.Stop()
+		updateTicker := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
+		defer updateTicker.Stop()
+		sendTicker := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
+		defer sendTicker.Stop()
 
-		for {
-			select {
-			case <-tickerUpdate.C:
-				handler.Update(ctx)
-			case <-tickerSend.C:
-				handler.SendMetrics(ctx, client, Flags.EndpointAddr, Flags.Key)
-			case <-sig:
-				return
+		go func() {
+			for {
+				select {
+				case <-updateTicker.C:
+					handler.Update(ctx)
+				case <-sig:
+					return
+				}
 			}
-		}
+		}()
+
+		go func() {
+			for {
+				select {
+				case <-updateTicker.C:
+					handler.UpdateSys(ctx)
+				case <-sig:
+					return
+				}
+			}
+		}()
+
+		go func() {
+			for {
+				select {
+				case <-sendTicker.C:
+					handler.SendMetrics(ctx, client, Flags.EndpointAddr, Flags.Key)
+				case <-sig:
+					return
+				}
+			}
+		}()
+
+		<-sig
+		cancel()
 	},
 }

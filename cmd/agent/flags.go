@@ -17,6 +17,7 @@ type Config struct {
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	Key            string `env:"KEY"`
+	RateLimit      int    `env:"RATE_LIMIT"`
 }
 
 var Flags Config
@@ -36,6 +37,10 @@ func setFlags(cfg *Config) {
 
 	if cfg.Key != "" {
 		Flags.Key = cfg.Key
+	}
+
+	if cfg.RateLimit != 0 {
+		Flags.RateLimit = cfg.RateLimit
 	}
 }
 

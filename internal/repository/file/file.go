@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -13,11 +14,12 @@ import (
 )
 
 type FileStorage struct {
+	mu      sync.RWMutex
 	file    *os.File
 	storage usecase.MetricsRepository
 }
 
-func New(path string, storage usecase.MetricsRepository, storeInterval int, restore bool) FileStorage {
+func New(path string, storage usecase.MetricsRepository, storeInterval int, restore bool) *FileStorage {
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to open backup file")
@@ -44,10 +46,10 @@ func New(path string, storage usecase.MetricsRepository, storeInterval int, rest
 			}
 		}
 	}
-	return fs
+	return &fs
 }
 
-func (fs FileStorage) Update(ctx context.Context, metric metrics.Metrics) error {
+func (fs *FileStorage) Update(ctx context.Context, metric metrics.Metrics) error {
 	if err := fs.storage.Update(ctx, metric); err != nil {
 		log.Error().Err(err).Msg("failed to add metric")
 		return err
@@ -60,7 +62,7 @@ func (fs FileStorage) Update(ctx context.Context, metric metrics.Metrics) error 
 	return nil
 }
 
-func (fs FileStorage) Get(ctx context.Context, mType, name string) (metrics.Metric, error) {
+func (fs *FileStorage) Get(ctx context.Context, mType, name string) (metrics.Metric, error) {
 	metric, err := fs.storage.Get(ctx, mType, name)
 	if err != nil {
 		log.Error().Err(err).Msgf("failed to get metric type:%s, name:%s", mType, name)
@@ -69,15 +71,15 @@ func (fs FileStorage) Get(ctx context.Context, mType, name string) (metrics.Metr
 	return metric, nil
 }
 
-func (fs FileStorage) List(ctx context.Context) []metrics.Metric {
+func (fs *FileStorage) List(ctx context.Context) []metrics.Metric {
 	return fs.storage.List(ctx)
 }
 
-func (fs FileStorage) Close() error {
+func (fs *FileStorage) Close() error {
 	return errors.Join(fs.storage.Close(), fs.file.Close())
 }
 
-func (fs FileStorage) Load(_ context.Context) ([]byte, error) {
+func (fs *FileStorage) Load(_ context.Context) ([]byte, error) {
 	istreamInfo, err := fs.file.Stat()
 	if err != nil {
 		log.Error().Err(err).Msg("error getting istream info")
@@ -93,7 +95,10 @@ func (fs FileStorage) Load(_ context.Context) ([]byte, error) {
 	return data, nil
 }
 
-func (fs FileStorage) LoadData(ctx context.Context) (metrics.Metrics, error) {
+func (fs *FileStorage) LoadData(ctx context.Context) (metrics.Metrics, error) {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+
 	data, err := fs.Load(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("error loading data")
@@ -108,7 +113,7 @@ func (fs FileStorage) LoadData(ctx context.Context) (metrics.Metrics, error) {
 	return mt.Serialize(), nil
 }
 
-func (fs FileStorage) StartBackupRoutine(storeInterval int) {
+func (fs *FileStorage) StartBackupRoutine(storeInterval int) {
 	go func() {
 		ticker := time.NewTicker(time.Duration(storeInterval) * time.Second)
 		done := make(chan struct{})
@@ -128,7 +133,10 @@ func (fs FileStorage) StartBackupRoutine(storeInterval int) {
 	}()
 }
 
-func (fs FileStorage) Save(ctx context.Context) error {
+func (fs *FileStorage) Save(ctx context.Context) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
 	mt := metrics.Metrics(fs.storage.List(ctx)).Deserialize()
 	data, err := mt.MarshalJSON()
 	if err != nil {
