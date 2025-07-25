@@ -43,7 +43,7 @@ func CheckHash(key string) func(fn http.Handler) http.Handler {
 				if err != nil {
 					log.Error().Err(err).Msg("failed to decode string")
 				}
-				if hash.Verify([]byte(key), body, []byte(expectedHash)) {
+				if !hash.Verify([]byte(key), body, []byte(expectedHash)) {
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
