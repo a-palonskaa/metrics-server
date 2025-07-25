@@ -1,9 +1,7 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
-	"os"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/fatih/color"
@@ -14,20 +12,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-<<<<<<< HEAD
-	database "github.com/a-palonskaa/metrics-server/internal/database"
-	errhandlers "github.com/a-palonskaa/metrics-server/internal/err_handlers"
-	server_handler "github.com/a-palonskaa/metrics-server/internal/handlers/server"
-	memstorage "github.com/a-palonskaa/metrics-server/internal/metrics_storage"
-=======
 	repo "github.com/a-palonskaa/metrics-server/internal/repository"
-	file "github.com/a-palonskaa/metrics-server/internal/repository/file"
+	database "github.com/a-palonskaa/metrics-server/internal/repository/database"
 	service "github.com/a-palonskaa/metrics-server/internal/server/service"
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
-<<<<<<< HEAD
->>>>>>> a77deee (file logic)
-=======
->>>>>>> a83d27f (naming+html template)
 )
 
 func init() {
@@ -55,52 +43,43 @@ var cmd = &cobra.Command{
 	PreRun: func(cmd *cobra.Command, args []string) {
 		var cfg Config
 		if err := env.Parse(&cfg); err != nil {
-			log.Fatal().Msgf("environment variables parsing error\n")
+			log.Error().Msg("environment variables parsing error\n")
+			return
 		}
 
 		setFlags(&cfg)
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-<<<<<<< HEAD
-		memStorage := repo.NewMemStorage(Flags.DatabaseAddr)
-		backupStorage := file.NewFileBackup(Flags.FileStoragePath)
-
-		msUsecase := usecase.NewMemStorageUsecase(memStorage, backupStorage, Flags.StoreInterval, Flags.Restore)
-		pingUsecase := usecase.NewPingUsecase(Flags.DatabaseAddr)
-
-		serverHandler := service.NewHandler(msUsecase, pingUsecase)
-=======
-		repoParams := repo.NewParams{
+		memStorage := repo.New(repo.NewParams{
 			DatabaseAddr:  Flags.DatabaseAddr,
 			FilePath:      Flags.FileStoragePath,
 			StoreInterval: Flags.StoreInterval,
 			Restore:       Flags.Restore,
-		}
-		memStorage := repo.New(repoParams)
->>>>>>> a83d27f (naming+html template)
+		})
 		defer func() {
-			if err := serverHandler.Close(); err != nil {
-				log.Error().Err(err).Msg("error closing handler")
+			if err := memStorage.Close(); err != nil {
+				log.Error().Err(err).Msg("error closing memStorage")
 				return
 			}
 		}()
 
-<<<<<<< HEAD
-=======
-		connector := conn.New(Flags.DatabaseAddr)
+		connector := database.NewConn(Flags.DatabaseAddr)
 
 		msUsecase := usecase.NewMemStorage(memStorage)
 		pingUsecase := usecase.NewPing(connector)
 
-		serverHandler := service.New(msUsecase, pingUsecase)
+		serverHandler := service.New(service.Params{
+			MsUsecase:   msUsecase,
+			PingUsecase: pingUsecase,
+		})
 
->>>>>>> a83d27f (naming+html template)
 		r := chi.NewRouter()
 		r = serverHandler.Router(r)
 
 		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
-			log.Fatal().Msgf("error loading server: %s", err)
+			log.Error().Msgf("error loading server: %s", err)
+			return
 		}
 	},
 }

@@ -28,7 +28,8 @@ func WithCompression(fn http.Handler) http.Handler {
 			}
 			defer func() {
 				if err := gz.Close(); err != nil {
-					log.Fatal().Err(err)
+					log.Error().Err(err).Msg("error closing griz reader")
+					return
 				}
 			}()
 			r.Body = gz
@@ -45,7 +46,8 @@ func WithCompression(fn http.Handler) http.Handler {
 		}
 		defer func() {
 			if err := gz.Close(); err != nil {
-				log.Fatal().Err(err)
+				log.Error().Err(err).Msg("error closing griz writer")
+				return
 			}
 		}()
 		w.Header().Set("Content-Encoding", "gzip")

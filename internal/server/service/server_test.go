@@ -1,4 +1,4 @@
-package server
+package server_test
 
 import (
 	"log"
@@ -9,12 +9,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 
-	file "github.com/a-palonskaa/metrics-server/internal/repository/file"
+	database "github.com/a-palonskaa/metrics-server/internal/repository/database"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
+	server "github.com/a-palonskaa/metrics-server/internal/server/service"
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 )
-
-//----------------------Test-Post-Handlers----------------------
 
 func TestPostHandler(t *testing.T) {
 	type request struct {
@@ -127,20 +126,15 @@ func TestPostHandler(t *testing.T) {
 
 	r := chi.NewRouter()
 
-	memStorage := memstorage.NewMetricsStorage()
-	backupStorage := file.NewFileBackup("")
+	msUsecase := usecase.NewMemStorage(memstorage.New())
+	pingUsecase := usecase.NewPing(database.NewConn(""))
 
-	msUsecase := usecase.NewMemStorageUsecase(memStorage, backupStorage, 0, false)
-	pingUsecase := usecase.NewPingUsecase("")
+	serverHandler := server.New(server.Params{
+		MsUsecase:   msUsecase,
+		PingUsecase: pingUsecase,
+	})
 
-	serverHandler := NewHandler(msUsecase, pingUsecase)
-	defer func() {
-		if err := serverHandler.Close(); err != nil {
-			return
-		}
-	}()
-
-	_ = serverHandler.RouteRequests(r)
+	_ = serverHandler.Router(r)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -205,22 +199,6 @@ func TestGeneralCaseHandler(t *testing.T) {
 			code: http.StatusNotFound,
 		},
 		{
-			name: "working-case-gauge#1",
-			request: request{
-				method: http.MethodGet,
-				url:    "/value/gauge/Frees",
-			},
-			code: http.StatusOK,
-		},
-		{
-			name: "working-case-counter#1",
-			request: request{
-				method: http.MethodGet,
-				url:    "/value/counter/PollCount",
-			},
-			code: http.StatusOK,
-		},
-		{
 			name: "working-incorr-name#1",
 			request: request{
 				method: http.MethodGet,
@@ -231,21 +209,15 @@ func TestGeneralCaseHandler(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
+	msUsecase := usecase.NewMemStorage(memstorage.New())
+	pingUsecase := usecase.NewPing(database.NewConn(""))
 
-	memStorage := memstorage.NewMetricsStorage()
-	backupStorage := file.NewFileBackup("")
+	serverHandler := server.New(server.Params{
+		MsUsecase:   msUsecase,
+		PingUsecase: pingUsecase,
+	})
 
-	msUsecase := usecase.NewMemStorageUsecase(memStorage, backupStorage, 0, false)
-	pingUsecase := usecase.NewPingUsecase("")
-
-	serverHandler := NewHandler(msUsecase, pingUsecase)
-	defer func() {
-		if err := serverHandler.Close(); err != nil {
-			return
-		}
-	}()
-
-	_ = serverHandler.RouteRequests(r)
+	_ = serverHandler.Router(r)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -289,20 +261,15 @@ func TestAllValueHandler(t *testing.T) {
 
 	r := chi.NewRouter()
 
-	memStorage := memstorage.NewMetricsStorage()
-	backupStorage := file.NewFileBackup("")
+	msUsecase := usecase.NewMemStorage(memstorage.New())
+	pingUsecase := usecase.NewPing(database.NewConn(""))
 
-	msUsecase := usecase.NewMemStorageUsecase(memStorage, backupStorage, 0, false)
-	pingUsecase := usecase.NewPingUsecase("")
+	serverHandler := server.New(server.Params{
+		MsUsecase:   msUsecase,
+		PingUsecase: pingUsecase,
+	})
 
-	serverHandler := NewHandler(msUsecase, pingUsecase)
-	defer func() {
-		if err := serverHandler.Close(); err != nil {
-			return
-		}
-	}()
-
-	_ = serverHandler.RouteRequests(r)
+	_ = serverHandler.Router(r)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

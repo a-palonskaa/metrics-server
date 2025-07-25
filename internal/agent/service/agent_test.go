@@ -1,4 +1,4 @@
-package agent
+package agent_test
 
 import (
 	"net/http"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-resty/resty/v2"
 
+	agent "github.com/a-palonskaa/metrics-server/internal/agent/service"
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
 )
@@ -44,7 +45,7 @@ func TestSendRequest(t *testing.T) {
 					{
 						ID:    "Frees",
 						MType: "gauge",
-						Value: &gauge,
+						Value: gauge,
 					},
 				},
 			},
@@ -59,7 +60,7 @@ func TestSendRequest(t *testing.T) {
 					{
 						ID:    "Frees",
 						MType: "counter",
-						Delta: &counter,
+						Delta: counter,
 					},
 				},
 			},
@@ -83,7 +84,7 @@ func TestSendRequest(t *testing.T) {
 					{
 						ID:    "Frees",
 						MType: "counter",
-						Delta: &counter,
+						Delta: counter,
 					},
 				},
 			},
@@ -91,7 +92,7 @@ func TestSendRequest(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(memstorage.NewMetricsStorage())
+	handler := agent.NewHandler(memstorage.New())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := handler.SendRequest(tt.args.client, tt.args.endpoint, tt.args.body)

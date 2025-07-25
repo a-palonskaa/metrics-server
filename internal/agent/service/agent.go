@@ -11,22 +11,14 @@ import (
 
 	usecase "github.com/a-palonskaa/metrics-server/internal/agent/usecase"
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
-	repo "github.com/a-palonskaa/metrics-server/internal/repository"
 	errhandler "github.com/a-palonskaa/metrics-server/pkg/err_handlers"
 )
 
-// ----------------------handler-interface----------------------
-type Handler interface {
-	Update(ctx context.Context)
-	SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string)
-}
-
-// ----------------------handler-type----------------------
 type AgentHandler struct {
-	msUsecase usecase.MemStorageUsecase
+	msUsecase usecase.MemStorage
 }
 
-func NewHandler(storage repo.MemStorage) AgentHandler {
+func NewHandler(storage usecase.MetricsRepository) AgentHandler {
 	return AgentHandler{
 		msUsecase: usecase.NewMemStorageUsecase(storage),
 	}
@@ -44,29 +36,31 @@ func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, end
 }
 
 func (h AgentHandler) Update(ctx context.Context) {
-	h.msUsecase.UpdateMetrics(ctx)
+	if err := h.msUsecase.UpdateMetrics(ctx); err != nil {
+		log.Error().Err(err).Msg("failed to update metrics")
+	}
 }
 
-// ----------------------ServerHandler-methods----------------------
 func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body metrics.Metrics) error {
 	if len(body) == 0 {
 		return nil
 	}
 
-	jsonData, err := body.MarshalJSON()
+	mtr := body.Deserialize()
+	jsonData, err := mtr.MarshalJSON()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal metrics: %v", err)
 	}
 
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	if _, err := gz.Write(jsonData); err != nil {
-		log.Error().Err(err)
-		return err
+		log.Error().Err(err).Msg("failed to write compressed data")
+		return fmt.Errorf("failed to write compressed data: %v", err)
 	}
 	if err := gz.Close(); err != nil {
-		log.Error().Err(err)
-		return err
+		log.Error().Err(err).Msg("failed to close gzip Writer")
+		return fmt.Errorf("failed to close gzip Writer: %v", err)
 	}
 
 	_, err = client.SetBaseURL("http://"+endpoint).R().
@@ -76,9 +70,8 @@ func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body me
 		SetBody(buf.Bytes()).
 		Post("/updates/")
 	if err != nil {
-		log.Error().Err(err).Msg("failed to send request")
-		return err
+		log.Error().Err(err).Msgf("failed to send request w metrics update to server %s", endpoint)
+		return fmt.Errorf("failed to send request w metrics update to server: %v", err)
 	}
-	log.Info().Msgf("sent metrics to server, %s", "http://"+endpoint+"/updates/")
 	return nil
 }

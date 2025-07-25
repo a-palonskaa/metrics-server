@@ -1,8 +1,6 @@
 module github.com/a-palonskaa/metrics-server
 
-go 1.23.0
-
-toolchain go1.24.4
+go 1.24.4
 
 require (
 	github.com/caarlos0/env/v6 v6.10.1

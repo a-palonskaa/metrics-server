@@ -7,14 +7,13 @@ import (
 	"github.com/rs/zerolog/log"
 
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
-	repo "github.com/a-palonskaa/metrics-server/internal/repository"
 )
 
 type MemStorage struct {
-	storage repo.MemStorage
+	storage MetricsRepository
 }
 
-func NewMemStorage(storage repo.MemStorage) MemStorage {
+func NewMemStorage(storage MetricsRepository) MemStorage {
 	ms := MemStorage{
 		storage: storage,
 	}
@@ -26,12 +25,9 @@ func (ms MemStorage) GetAllMetrics(ctx context.Context) []metrics.Metric {
 }
 
 func (ms MemStorage) UpdateMetrics(ctx context.Context, mt metrics.Metrics) error {
-	for _, metric := range mt {
-		log.Info().Msgf("adding type:%s, name:%s", metric.MType, metric.ID)
-		if err := ms.storage.Add(ctx, metric); err != nil {
-			log.Error().Err(err).Msg("failed to add metric")
-			return err
-		}
+	if err := ms.storage.Update(ctx, mt); err != nil {
+		log.Error().Err(err).Msg("failed to add metric")
+		return err
 	}
 	return nil
 }

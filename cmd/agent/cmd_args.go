@@ -41,7 +41,8 @@ var Cmd = &cobra.Command{
 		var cfg Config
 		err := env.Parse(&cfg)
 		if err != nil {
-			log.Fatal().Msgf("environment variables parsing error")
+			log.Error().Msgf("environment variables parsing error")
+			return
 		}
 
 		setFlags(&cfg)
@@ -53,7 +54,7 @@ var Cmd = &cobra.Command{
 
 		client := resty.New()
 
-		handler := agent_handler.NewHandler(memstorage.NewMetricsStorage())
+		handler := agent_handler.NewHandler(memstorage.New())
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -63,7 +64,6 @@ var Cmd = &cobra.Command{
 		tickerSend := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
 		defer tickerSend.Stop()
 
-		sendMetrics := agent_handler.MakeSendMetricsFunc(ctx, client, Flags.EndpointAddr)
 		for {
 			select {
 			case <-tickerUpdate.C:

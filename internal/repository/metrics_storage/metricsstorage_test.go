@@ -1,199 +1,137 @@
-package metricsstorage
+package metricsstorage_test
 
 import (
 	"context"
+	"sort"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
+	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
 )
 
-//----------------------Test-MemStorage-Methods----------------------
-
-func TestMemStorage_AddGauge(t *testing.T) {
-	type fields struct {
-		Gauge   map[string]metrics.Gauge
-		Counter map[string]metrics.Counter
-	}
-	type args struct {
-		name string
-		val  metrics.Gauge
+func TestMetricsStorage_AddAndGet(t *testing.T) {
+	type testCase struct {
+		name        string
+		beforeAdd   bool
+		metric      metrics.Metric
+		expectError error
+		expectDelta int64
+		expectValue float64
 	}
 
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
+	ctx := context.Background()
+	storage := memstorage.New()
+
+	tests := []testCase{
 		{
-			name: "empty-memStorage",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{},
-				Counter: map[string]metrics.Counter{},
-			},
-			args: args{
-				name: "name",
-				val:  123.1,
-			},
+			name:        "get-missing-gauge",
+			beforeAdd:   true,
+			metric:      metrics.Metric{ID: "not_found", MType: "gauge"},
+			expectError: metrics.ErrUnallowedMetric,
 		},
 		{
-			name: "empty-name-to-empy-memStorage",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{},
-				Counter: map[string]metrics.Counter{},
-			},
-			args: args{
-				name: "",
-				val:  123.1,
-			},
+			name:        "get-invalid-type",
+			beforeAdd:   true,
+			metric:      metrics.Metric{ID: "invalid", MType: "invalid"},
+			expectError: metrics.ErrIncorrectMetricType,
 		},
 		{
-			name: "existed-name-to-memStorage-empty-counter",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{"name": 12.0977},
-				Counter: map[string]metrics.Counter{},
-			},
-			args: args{
-				name: "name",
-				val:  123.1111,
-			},
+			name:        "add-valid-gauge",
+			metric:      metrics.Metric{ID: "test_gauge", MType: "gauge", Value: 42.42},
+			expectValue: 42.42,
 		},
 		{
-			name: "existed-name-to-memStorage",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{"name": 12.09},
-				Counter: map[string]metrics.Counter{"counter": 1},
-			},
-			args: args{
-				name: "name",
-				val:  123.9,
-			},
+			name:        "add-invalid-type",
+			metric:      metrics.Metric{ID: "bad", MType: "invalid", Value: 1.0},
+			expectError: metrics.ErrIncorrectMetricType,
 		},
 		{
-			name: "non-existed-name-to-non-empty-memStorage-empty-counter",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{"noname": 12.123},
-				Counter: map[string]metrics.Counter{},
-			},
-			args: args{
-				name: "name",
-				val:  123.2,
-			},
+			name:        "add-valid-gauge",
+			metric:      metrics.Metric{ID: "test_gauge", MType: "gauge", Value: 42.42},
+			expectValue: 42.42,
 		},
 		{
-			name: "non-existed-name-to-non-empty-memStorage",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{"noname": 12.123},
-				Counter: map[string]metrics.Counter{"counter": 1},
-			},
-			args: args{
-				name: "name",
-				val:  123.2,
-			},
+			name:        "add-valid-counter",
+			metric:      metrics.Metric{ID: "test_counter", MType: "counter", Delta: int64(10)},
+			expectDelta: 10,
+		},
+		{
+			name:        "add-counter-sum",
+			metric:      metrics.Metric{ID: "test_counter", MType: "counter", Delta: int64(15)},
+			expectDelta: 25,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ms := &MetricsStorage{
-				GaugeMetrics:        tt.fields.Gauge,
-				CounterMetrics:      tt.fields.Counter,
-				AllowedGaugeNames:   make(map[string]bool),
-				AllowedCounterNames: make(map[string]bool),
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.beforeAdd {
+				_, err := storage.Get(ctx, tc.metric.MType, tc.metric.ID)
+				require.ErrorIs(t, err, tc.expectError)
+				return
 			}
-			ms.AddGauge(context.TODO(), tt.args.name, tt.args.val)
+
+			err := storage.Update(ctx, metrics.Metrics([]metrics.Metric{tc.metric}))
+			if tc.expectError != nil {
+				require.ErrorIs(t, err, tc.expectError)
+				return
+			}
+			require.NoError(t, err)
+
+			got, err := storage.Get(ctx, tc.metric.MType, tc.metric.ID)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.metric.ID, got.ID)
+			assert.Equal(t, tc.metric.MType, got.MType)
+
+			if tc.metric.MType == "gauge" {
+				assert.Equal(t, tc.expectValue, got.Value)
+			}
+			if tc.metric.MType == "counter" {
+				require.NotNil(t, got.Delta)
+				assert.Equal(t, tc.expectDelta, got.Delta)
+			}
 		})
 	}
 }
 
-func TestMemStorage_AddCounter(t *testing.T) {
-	type fields struct {
-		Gauge   map[string]metrics.Gauge
-		Counter map[string]metrics.Counter
-	}
-	type args struct {
-		name string
-		val  metrics.Counter
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
+func TestMetricsStorage_List(t *testing.T) {
+	ctx := context.Background()
+	storage := memstorage.New()
+
+	metricsToAdd := []metrics.Metric{
 		{
-			name: "empty-memStorage",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{},
-				Counter: map[string]metrics.Counter{},
-			},
-			args: args{
-				name: "counter",
-				val:  123,
-			},
+			ID:    "cpu",
+			MType: "gauge",
+			Value: 1.5,
 		},
 		{
-			name: "empty-name-to-empy-memStorage",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{},
-				Counter: map[string]metrics.Counter{},
-			},
-			args: args{
-				name: "",
-				val:  123,
-			},
+			ID:    "reqs",
+			MType: "counter",
+			Delta: 100,
 		},
 		{
-			name: "existed-name-to-memStorage-empty-counter",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{},
-				Counter: map[string]metrics.Counter{"counter": 12},
-			},
-			args: args{
-				name: "counter",
-				val:  123,
-			},
-		},
-		{
-			name: "existed-name-to-memStorage",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{"name": 12},
-				Counter: map[string]metrics.Counter{"counter": 1},
-			},
-			args: args{
-				name: "counter",
-				val:  123,
-			},
-		},
-		{
-			name: "non-existed-name-to-non-empty-memStorage-empty-counter",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{},
-				Counter: map[string]metrics.Counter{"nocounter": 12},
-			},
-			args: args{
-				name: "counter",
-				val:  123,
-			},
-		},
-		{
-			name: "non-existed-name-to-non-empty-memStorage",
-			fields: fields{
-				Gauge:   map[string]metrics.Gauge{"noname": 12},
-				Counter: map[string]metrics.Counter{"counter": 1},
-			},
-			args: args{
-				name: "counter",
-				val:  123,
-			},
+			ID:    "mem",
+			MType: "gauge",
+			Value: 256,
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ms := &MetricsStorage{
-				GaugeMetrics:        tt.fields.Gauge,
-				CounterMetrics:      tt.fields.Counter,
-				AllowedGaugeNames:   make(map[string]bool),
-				AllowedCounterNames: make(map[string]bool),
-			}
-			ms.AddCounter(context.TODO(), tt.args.name, tt.args.val)
-		})
-	}
+
+	err := storage.Update(ctx, metrics.Metrics(metricsToAdd))
+	require.NoError(t, err)
+
+	got := storage.List(ctx)
+	require.Len(t, got, len(metricsToAdd))
+
+	sort.Slice(got, func(i, j int) bool { return got[i].ID < got[j].ID })
+	sort.Slice(metricsToAdd, func(i, j int) bool { return metricsToAdd[i].ID < metricsToAdd[j].ID })
+	assert.Equal(t, metricsToAdd, got)
+}
+
+func TestMetricsStorage_Close(t *testing.T) {
+	storage := memstorage.New()
+	err := storage.Close()
+	require.NoError(t, err)
 }

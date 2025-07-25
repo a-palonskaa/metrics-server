@@ -34,20 +34,24 @@ func setFlags(cfg *Config) {
 
 func validateFlags() {
 	if Flags.PollInterval <= 0 || Flags.ReportInterval <= 0 {
-		log.Fatal().Msgf("Error: PollInterval & ReportInterval must be greater than 0")
+		log.Error().Msgf("Error: PollInterval & ReportInterval must be greater than 0")
+		return
 	}
 
 	_, portStr, err := net.SplitHostPort(Flags.EndpointAddr)
 	if err != nil {
-		log.Fatal().Msgf("invalid address format: %s", err)
+		log.Error().Msgf("invalid address format: %s", err)
+		return
 	}
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		log.Fatal().Msgf("port must be a number: %s", err)
+		log.Error().Msgf("port must be a number: %s", err)
+		return
 	}
 
 	if port < minPort || port > maxPort {
-		log.Fatal().Msgf("port must be between %d and %d", minPort, maxPort)
+		log.Error().Msgf("port must be between %d and %d", minPort, maxPort)
+		return
 	}
 }

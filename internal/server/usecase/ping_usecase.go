@@ -5,8 +5,6 @@ import (
 	"errors"
 
 	"github.com/rs/zerolog/log"
-
-	repo "github.com/a-palonskaa/metrics-server/internal/repository"
 )
 
 var (
@@ -14,10 +12,10 @@ var (
 )
 
 type Ping struct {
-	conn repo.Connector
+	conn Connector
 }
 
-func NewPing(conn repo.Connector) Ping {
+func NewPing(conn Connector) Ping {
 	return Ping{
 		conn: conn,
 	}
