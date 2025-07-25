@@ -26,24 +26,30 @@ func NewHandler(storage usecase.MetricsRepository) AgentHandler {
 	}
 }
 
-func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string, key string) {
+func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string, key string, body metrics.Metrics) error {
 	err := errhandler.RetriableErrHadlerVoid(
 		func() error {
-			body := h.msUsecase.ListAllMetrics(ctx)
 			return h.SendRequest(client, endpointAddr, body, key)
 		}, errhandler.CompareErrAgent)
 	if err != nil {
 		log.Error().Err(err).Msg("error sending metrics")
+		return err
 	}
+	log.Info().Msg("send metrics successfully")
+	return nil
 }
 
-func (h AgentHandler) Update(ctx context.Context) {
+func (h AgentHandler) ListAllMetrics(ctx context.Context) metrics.Metrics {
+	return h.msUsecase.ListAllMetrics(ctx)
+}
+
+func (h AgentHandler) UpdateRuntimeMetrics(ctx context.Context) {
 	if err := h.msUsecase.UpdateMetrics(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to update metrics")
 	}
 }
 
-func (h AgentHandler) UpdateSys(ctx context.Context) {
+func (h AgentHandler) UpdateSystemMetrics(ctx context.Context) {
 	if err := h.msUsecase.UpdateSysMetrics(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to update metrics")
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	agent_handler "github.com/a-palonskaa/metrics-server/internal/agent/service"
+	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
 )
 
@@ -22,7 +24,7 @@ func init() {
 	cmd.PersistentFlags().IntVarP(&Flags.PollInterval, "pollinterval", "p", 2, "Metrics polling interval")
 	cmd.PersistentFlags().IntVarP(&Flags.ReportInterval, "reportinterval", "r", 10, "Metrics reporting interval")
 	cmd.PersistentFlags().StringVarP(&Flags.Key, "key", "k", "", "Key for hash")
-	cmd.PersistentFlags().IntVarP(&Flags.RateLimit, "limit", "l", 0, "Limit for requests amount")
+	cmd.PersistentFlags().IntVarP(&Flags.RateLimit, "limit", "l", 1, "Limit for requests amount")
 }
 
 var cmd = &cobra.Command{
@@ -54,24 +56,41 @@ var cmd = &cobra.Command{
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
-		client := resty.New()
-
-		handler := agent_handler.NewHandler(memstorage.New())
-
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+
+		client := resty.New()
+		handler := agent_handler.NewHandler(memstorage.New())
 
 		updateTicker := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
 		defer updateTicker.Stop()
 		sendTicker := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
 		defer sendTicker.Stop()
 
+		jobs := make(chan []metrics.Metric, Flags.RateLimit)
+		results := make(chan error, Flags.RateLimit)
+		var wg sync.WaitGroup
+		for i := 0; i < Flags.RateLimit; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for {
+					select {
+					case job := <-jobs:
+						results <- handler.SendMetrics(ctx, client, Flags.EndpointAddr, Flags.Key, job)
+					case <-ctx.Done():
+						return
+					}
+				}
+			}()
+		}
+
 		go func() {
 			for {
 				select {
 				case <-updateTicker.C:
-					handler.Update(ctx)
-				case <-sig:
+					handler.UpdateRuntimeMetrics(ctx)
+				case <-ctx.Done():
 					return
 				}
 			}
@@ -81,8 +100,8 @@ var cmd = &cobra.Command{
 			for {
 				select {
 				case <-updateTicker.C:
-					handler.UpdateSys(ctx)
-				case <-sig:
+					handler.UpdateSystemMetrics(ctx)
+				case <-ctx.Done():
 					return
 				}
 			}
@@ -92,8 +111,21 @@ var cmd = &cobra.Command{
 			for {
 				select {
 				case <-sendTicker.C:
-					handler.SendMetrics(ctx, client, Flags.EndpointAddr, Flags.Key)
-				case <-sig:
+					jobs <- handler.ListAllMetrics(ctx)
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+
+		go func() {
+			for {
+				select {
+				case err := <-results:
+					if err != nil {
+						log.Error().Err(err).Msg("failed to send metric")
+					}
+				case <-ctx.Done():
 					return
 				}
 			}
@@ -101,5 +133,8 @@ var cmd = &cobra.Command{
 
 		<-sig
 		cancel()
+		wg.Wait()
+		close(jobs)
+		close(results)
 	},
 }

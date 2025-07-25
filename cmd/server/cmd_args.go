@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/fatih/color"
@@ -52,6 +56,12 @@ var cmd = &cobra.Command{
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		memStorage := repo.New(repo.NewParams{
 			DatabaseAddr:  Flags.DatabaseAddr,
 			FilePath:      Flags.FileStoragePath,
@@ -79,9 +89,32 @@ var cmd = &cobra.Command{
 		r := chi.NewRouter()
 		r = serverHandler.Router(r)
 
-		if err := http.ListenAndServe(Flags.EndpointAddr, r); err != nil {
-			log.Error().Msgf("error loading server: %s", err)
+		serverErr := make(chan error, 1)
+
+		server := &http.Server{
+			Addr:    Flags.EndpointAddr,
+			Handler: r,
+		}
+
+		go func() {
+			if err := server.ListenAndServe(); err != nil {
+				serverErr <- err
+				return
+			}
+		}()
+
+		select {
+		case err := <-serverErr:
+			log.Error().Err(err).Msg("server error")
+			cancel()
+			close(serverErr)
 			return
+		case <-sig:
+			if err := server.Shutdown(ctx); err != nil {
+				if closeErr := server.Close(); closeErr != nil {
+					log.Error().Err(closeErr).Msg("shutdown error")
+				}
+			}
 		}
 	},
 }
