@@ -136,8 +136,12 @@ func (m Metric) Deserialize() RawMetric {
 			MType: m.MType,
 			Delta: &m.Delta,
 		}
+	default:
+		return RawMetric{
+			ID:    m.ID,
+			MType: m.MType,
+		}
 	}
-	return RawMetric{}
 }
 
 func (m Metrics) Deserialize() RawMetrics {
