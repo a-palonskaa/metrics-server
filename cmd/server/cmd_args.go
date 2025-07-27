@@ -90,6 +90,7 @@ var cmd = &cobra.Command{
 		r = serverHandler.Router(r)
 
 		serverErr := make(chan error, 1)
+		defer close(serverErr)
 
 		server := &http.Server{
 			Addr:    Flags.EndpointAddr,
@@ -107,7 +108,6 @@ var cmd = &cobra.Command{
 		case err := <-serverErr:
 			log.Error().Err(err).Msg("server error")
 			cancel()
-			close(serverErr)
 			return
 		case <-sig:
 			if err := server.Shutdown(ctx); err != nil {

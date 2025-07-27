@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -17,6 +16,7 @@ import (
 	agent_handler "github.com/a-palonskaa/metrics-server/internal/agent/service"
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
+	workerpool "github.com/a-palonskaa/metrics-server/pkg/worker_pool"
 )
 
 func init() {
@@ -29,7 +29,7 @@ func init() {
 
 var cmd = &cobra.Command{
 	Use:   "agent",
-	Short: "agent that sendTicker runtime metrics to server",
+	Short: "agent that send runtime metrics to server",
 	Long: color.New(color.FgGreen).Sprint(`
          █████╗  ██████╗ ███████╗███╗   ██╗████████╗
         ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝
@@ -37,7 +37,7 @@ var cmd = &cobra.Command{
         ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║
         ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║
         ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝`+"\n\n"+
-		"\tagent that sendTicker runtime metrics to server") + "\n\n" +
+		"\tagent that send runtime metrics to server") + "\n\n" +
 		"\t\x1b]8;;https://github.com/aliffka\x1b\\" +
 		color.New(color.FgCyan).Sprint("@aliffka") +
 		"\t\x1b]8;;\x1b\\",
@@ -67,51 +67,20 @@ var cmd = &cobra.Command{
 		sendTicker := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
 		defer sendTicker.Stop()
 
-		jobs := make(chan []metrics.Metric, Flags.RateLimit)
-		results := make(chan error, Flags.RateLimit)
-		var wg sync.WaitGroup
-		for i := 0; i < Flags.RateLimit; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for {
-					select {
-					case job := <-jobs:
-						results <- handler.SendMetrics(ctx, client, Flags.EndpointAddr, Flags.Key, job)
-					case <-ctx.Done():
-						return
-					}
-				}
-			}()
-		}
+		w := workerpool.New[metrics.Metrics, error](Flags.RateLimit, ctx)
+		defer w.Close()
+		w.Start(func(c context.Context, body metrics.Metrics) error {
+			return handler.SendMetrics(c, client, Flags.EndpointAddr, Flags.Key, body)
+		})
 
 		go func() {
 			for {
 				select {
 				case <-updateTicker.C:
 					handler.UpdateRuntimeMetrics(ctx)
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-
-		go func() {
-			for {
-				select {
-				case <-updateTicker.C:
 					handler.UpdateSystemMetrics(ctx)
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-
-		go func() {
-			for {
-				select {
 				case <-sendTicker.C:
-					jobs <- handler.ListAllMetrics(ctx)
+					w.AddTask(handler.ListAllMetrics(ctx))
 				case <-ctx.Done():
 					return
 				}
@@ -121,7 +90,7 @@ var cmd = &cobra.Command{
 		go func() {
 			for {
 				select {
-				case err := <-results:
+				case err := <-w.Result():
 					if err != nil {
 						log.Error().Err(err).Msg("failed to send metric")
 					}
@@ -133,8 +102,5 @@ var cmd = &cobra.Command{
 
 		<-sig
 		cancel()
-		wg.Wait()
-		close(jobs)
-		close(results)
 	},
 }

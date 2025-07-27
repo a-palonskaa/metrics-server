@@ -34,6 +34,7 @@ func TestGaugeString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.input.String())
 		})
 	}
@@ -64,6 +65,7 @@ func TestCounterString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.input.String())
 		})
 	}
@@ -94,7 +96,7 @@ func TestStrValue(t *testing.T) {
 			expected: "100",
 		},
 		{
-			name: "non",
+			name: "none",
 			input: metrics.Metric{
 				ID:    "req",
 				MType: "meow",
@@ -105,6 +107,7 @@ func TestStrValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.input.StrValue())
 		})
 	}
@@ -140,6 +143,7 @@ func TestIsTypeAllowed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, metrics.IsTypeAllowed(tt.input))
 		})
 	}
@@ -182,6 +186,7 @@ func TestSerializeDeserialize(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 				result := tt.input.Serialize()
 				assert.Equal(t, tt.expected, result)
 
@@ -267,6 +272,8 @@ func TestSerializeDeserialize(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
 				result := tt.input.Serialize()
 				assert.Equal(t, len(tt.expected), len(result))
 				for i := range tt.expected {
@@ -324,6 +331,7 @@ func TestSerialize(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 				result := tt.input.Serialize()
 				assert.Equal(t, tt.expected, result)
 			})
@@ -353,6 +361,7 @@ func TestDeserialize(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 				resultAfter := tt.expected.Deserialize()
 				assert.Equal(t, resultAfter, tt.input)
 			})

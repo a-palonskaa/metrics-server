@@ -96,7 +96,6 @@ func (h ServerHandler) CheckConnection(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func (h ServerHandler) UpdateMetricByURL(w http.ResponseWriter, r *http.Request) {
@@ -122,7 +121,6 @@ func (h ServerHandler) UpdateMetricByURL(w http.ResponseWriter, r *http.Request)
 		log.Error().Err(err).Msg("failed to add metrics to storage")
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func (h ServerHandler) GetMetricByBody(w http.ResponseWriter, r *http.Request) {
@@ -170,7 +168,6 @@ func (h ServerHandler) GetMetricByBody(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(resp); err != nil {
 		log.Error().Err(err).Msg("error writing response")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -225,7 +222,6 @@ func (h ServerHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err).Msg("error writing response")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func (h ServerHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
@@ -276,7 +272,6 @@ func (h ServerHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err).Msg("error writing response")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func (h ServerHandler) GetMetricValueByURI(w http.ResponseWriter, r *http.Request) {

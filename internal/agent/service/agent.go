@@ -33,7 +33,7 @@ func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, end
 		}, errhandler.CompareErrAgent)
 	if err != nil {
 		log.Error().Err(err).Msg("error sending metrics")
-		return err
+		return fmt.Errorf("error sending metrics: %v", err)
 	}
 	log.Info().Msg("send metrics successfully")
 	return nil

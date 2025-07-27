@@ -73,14 +73,14 @@ func (ms MemStorage) UpdateMetrics(ctx context.Context) error {
 func (ms MemStorage) UpdateSysMetrics(ctx context.Context) error {
 	memStat, err := mem.VirtualMemoryWithContext(ctx)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to her vm stats")
-		return err //ХУЙНЯ -  wrap
+		log.Error().Err(err).Msg("failed to get vm stats")
+		return fmt.Errorf("failed to get vm stat: %v", err)
 	}
 
 	cpuStat, err := cpu.PercentWithContext(ctx, 0, true)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to calculate the percentage of cpu used")
-		return err //ХУЙНЯ -  wrap
+		return fmt.Errorf("failed to calculate the percentage of cpu used: %v", err)
 	}
 
 	var metricsToStore []metrics.Metric
