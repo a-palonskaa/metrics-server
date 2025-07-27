@@ -14,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 
 	agent_handler "github.com/a-palonskaa/metrics-server/internal/agent/service"
-	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
 	workerpool "github.com/a-palonskaa/metrics-server/pkg/worker_pool"
 )
@@ -67,7 +66,7 @@ var cmd = &cobra.Command{
 		sendTicker := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
 		defer sendTicker.Stop()
 
-		w := workerpool.New[error](Flags.RateLimit, ctx)
+		w := workerpool.New(Flags.RateLimit, ctx)
 		defer w.Close()
 
 		go func() {
@@ -77,7 +76,7 @@ var cmd = &cobra.Command{
 					handler.UpdateRuntimeMetrics(ctx)
 					handler.UpdateSystemMetrics(ctx)
 				case <-sendTicker.C:
-					w.AddTask(func(c context.Context) error {
+					w.AddTask(func(c context.Context) interface{} {
 						return handler.SendMetrics(c, client, Flags.EndpointAddr, Flags.Key)
 					})
 				case <-ctx.Done():
@@ -90,8 +89,11 @@ var cmd = &cobra.Command{
 			for {
 				select {
 				case err := <-w.Result():
-					if err != nil {
-						log.Error().Err(err).Msg("failed to send metric")
+					switch status := err.(type) {
+					case error:
+						if status != nil {
+							log.Error().Err(status).Msg("failed to send metric")
+						}
 					}
 				case <-ctx.Done():
 					return
