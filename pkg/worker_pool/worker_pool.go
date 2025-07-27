@@ -5,10 +5,9 @@ import (
 	"sync"
 )
 
-type WorkerPool[job any, res any] struct {
-	jobs      chan job
-	results   chan res
-	workerNum int
+type WorkerPool[res any] struct {
+	jobs    chan func(ctx context.Context) res
+	results chan res
 
 	wg  sync.WaitGroup
 	ctx context.Context
@@ -17,37 +16,26 @@ type WorkerPool[job any, res any] struct {
 	stopOnce  sync.Once
 }
 
-func New[job any, res any](rateLimit int, ctx context.Context) *WorkerPool[job, res] {
+func New[res any](rateLimit int, ctx context.Context) *WorkerPool[res] {
 	if rateLimit < 1 {
 		rateLimit = 1
 	}
 
-	return &WorkerPool[job, res]{
-		jobs:      make(chan job, rateLimit),
-		results:   make(chan res, rateLimit),
-		workerNum: rateLimit,
-		ctx:       ctx,
+	w := &WorkerPool[res]{
+		jobs:    make(chan func(ctx context.Context) res, rateLimit),
+		results: make(chan res, rateLimit),
+		ctx:     ctx,
 	}
-}
 
-func (w *WorkerPool[job, res]) Close() {
-	w.stopOnce.Do(func() {
-		w.wg.Wait()
-		close(w.jobs)
-		close(w.results)
-	})
-}
-
-func (w *WorkerPool[job, res]) Start(fn func(context.Context, job) res) {
 	w.startOnce.Do(func() {
-		for i := 0; i < w.workerNum; i++ {
+		for i := 0; i < rateLimit; i++ {
 			w.wg.Add(1)
 			go func() {
 				defer w.wg.Done()
 				for {
 					select {
 					case job := <-w.jobs:
-						w.results <- fn(w.ctx, job)
+						w.results <- job(w.ctx)
 					case <-w.ctx.Done():
 						return
 					}
@@ -55,9 +43,18 @@ func (w *WorkerPool[job, res]) Start(fn func(context.Context, job) res) {
 			}()
 		}
 	})
+	return w
 }
 
-func (w *WorkerPool[job, res]) AddTask(j job) {
+func (w *WorkerPool[res]) Close() {
+	w.stopOnce.Do(func() {
+		w.wg.Wait()
+		close(w.jobs)
+		close(w.results)
+	})
+}
+
+func (w *WorkerPool[res]) AddTask(j func(ctx context.Context) res) {
 	select {
 	case w.jobs <- j:
 	case <-w.ctx.Done():
@@ -65,6 +62,6 @@ func (w *WorkerPool[job, res]) AddTask(j job) {
 
 }
 
-func (w *WorkerPool[job, res]) Result() <-chan res {
+func (w *WorkerPool[res]) Result() <-chan res {
 	return w.results
 }

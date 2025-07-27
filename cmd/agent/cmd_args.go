@@ -67,11 +67,8 @@ var cmd = &cobra.Command{
 		sendTicker := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
 		defer sendTicker.Stop()
 
-		w := workerpool.New[metrics.Metrics, error](Flags.RateLimit, ctx)
+		w := workerpool.New[error](Flags.RateLimit, ctx)
 		defer w.Close()
-		w.Start(func(c context.Context, body metrics.Metrics) error {
-			return handler.SendMetrics(c, client, Flags.EndpointAddr, Flags.Key, body)
-		})
 
 		go func() {
 			for {
@@ -80,7 +77,9 @@ var cmd = &cobra.Command{
 					handler.UpdateRuntimeMetrics(ctx)
 					handler.UpdateSystemMetrics(ctx)
 				case <-sendTicker.C:
-					w.AddTask(handler.ListAllMetrics(ctx))
+					w.AddTask(func(c context.Context) error {
+						return handler.SendMetrics(c, client, Flags.EndpointAddr, Flags.Key)
+					})
 				case <-ctx.Done():
 					return
 				}

@@ -26,7 +26,9 @@ func NewHandler(storage usecase.MetricsRepository) AgentHandler {
 	}
 }
 
-func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string, key string, body metrics.Metrics) error {
+func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string, key string) error {
+	body := h.ListAllMetrics(ctx)
+
 	err := errhandler.RetriableErrHadlerVoid(
 		func() error {
 			return h.SendRequest(client, endpointAddr, body, key)
