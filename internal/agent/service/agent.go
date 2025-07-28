@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
@@ -12,6 +13,7 @@ import (
 	usecase "github.com/a-palonskaa/metrics-server/internal/agent/usecase"
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	errhandler "github.com/a-palonskaa/metrics-server/pkg/err_handlers"
+	hash "github.com/a-palonskaa/metrics-server/pkg/hash"
 )
 
 type AgentHandler struct {
@@ -24,11 +26,11 @@ func NewHandler(storage usecase.MetricsRepository) AgentHandler {
 	}
 }
 
-func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string) {
+func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string, key string) {
 	err := errhandler.RetriableErrHadlerVoid(
 		func() error {
 			body := h.msUsecase.ListAllMetrics(ctx)
-			return h.SendRequest(client, endpointAddr, body)
+			return h.SendRequest(client, endpointAddr, body, key)
 		}, errhandler.CompareErrAgent)
 	if err != nil {
 		log.Error().Err(err).Msg("error sending metrics")
@@ -41,7 +43,7 @@ func (h AgentHandler) Update(ctx context.Context) {
 	}
 }
 
-func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body metrics.Metrics) error {
+func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body metrics.Metrics, key string) error {
 	if len(body) == 0 {
 		return nil
 	}
@@ -63,12 +65,21 @@ func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body me
 		return fmt.Errorf("failed to close gzip Writer: %v", err)
 	}
 
-	_, err = client.SetBaseURL("http://"+endpoint).R().
+	req := client.SetBaseURL("http://"+endpoint).R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept-Encoding", "gzip").
 		SetHeader("Content-Encoding", "gzip").
-		SetBody(buf.Bytes()).
-		Post("/updates/")
+		SetBody(buf.Bytes())
+
+	if key != "" {
+		dst, err := hash.Calculate([]byte(key), jsonData)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to calculate hash")
+		}
+		req.SetHeader("HashSHA256", hex.EncodeToString(dst))
+	}
+
+	_, err = req.Post("/updates/")
 	if err != nil {
 		log.Error().Err(err).Msgf("failed to send request w metrics update to server %s", endpoint)
 		return fmt.Errorf("failed to send request w metrics update to server: %v", err)

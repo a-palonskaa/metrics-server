@@ -19,6 +19,7 @@ type Config struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
 	DatabaseAddr    string `env:"DATABASE_DSN"`
+	Key             string `env:"KEY"`
 }
 
 var Flags Config
@@ -43,23 +44,24 @@ func setFlags(cfg *Config) {
 	if _, exists := os.LookupEnv("STORE_INTERVAL"); exists {
 		Flags.StoreInterval = cfg.StoreInterval
 	}
+
+	if cfg.Key != "" {
+		Flags.Key = cfg.Key
+	}
 }
 
 func validateFlags() {
 	_, portStr, err := net.SplitHostPort(Flags.EndpointAddr)
 	if err != nil {
-		log.Error().Msgf("invalid address format: %s", err)
-		return
+		log.Fatal().Msgf("invalid address format: %s", err)
 	}
 
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		log.Error().Msgf("port must be a number: %s", err)
-		return
+		log.Fatal().Msgf("port must be a number: %s", err)
 	}
 
 	if port < minPort || port > maxPort {
-		log.Error().Msgf("port must be between %d and %d", minPort, maxPort)
-		return
+		log.Fatal().Msgf("port must be between %d and %d", minPort, maxPort)
 	}
 }
