@@ -76,7 +76,7 @@ var cmd = &cobra.Command{
 					handler.UpdateRuntimeMetrics(ctx)
 					handler.UpdateSystemMetrics(ctx)
 				case <-sendTicker.C:
-					w.AddTask(func(c context.Context) interface{} {
+					w.AddTask(func(c context.Context) error {
 						return handler.SendMetrics(c, client, Flags.EndpointAddr, Flags.Key)
 					})
 				case <-ctx.Done():

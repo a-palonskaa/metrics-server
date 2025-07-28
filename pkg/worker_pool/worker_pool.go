@@ -6,8 +6,8 @@ import (
 )
 
 type WorkerPool struct {
-	jobs    chan func(ctx context.Context) interface{}
-	results chan interface{}
+	jobs    chan func(ctx context.Context) error
+	results chan error
 
 	wg  sync.WaitGroup
 	ctx context.Context
@@ -22,8 +22,8 @@ func New(rateLimit int, ctx context.Context) *WorkerPool {
 	}
 
 	w := &WorkerPool{
-		jobs:    make(chan func(ctx context.Context) interface{}, rateLimit),
-		results: make(chan interface{}, rateLimit),
+		jobs:    make(chan func(ctx context.Context) error, rateLimit),
+		results: make(chan error, rateLimit),
 		ctx:     ctx,
 	}
 
@@ -54,7 +54,7 @@ func (w *WorkerPool) Close() {
 	})
 }
 
-func (w *WorkerPool) AddTask(j func(ctx context.Context) interface{}) {
+func (w *WorkerPool) AddTask(j func(ctx context.Context) error) {
 	select {
 	case w.jobs <- j:
 	case <-w.ctx.Done():
@@ -62,6 +62,6 @@ func (w *WorkerPool) AddTask(j func(ctx context.Context) interface{}) {
 
 }
 
-func (w *WorkerPool) Result() <-chan interface{} {
+func (w *WorkerPool) Result() <-chan error {
 	return w.results
 }
