@@ -7,6 +7,8 @@ import (
 	"runtime"
 
 	"github.com/rs/zerolog/log"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 )
@@ -59,6 +61,38 @@ func (ms MemStorage) UpdateMetrics(ctx context.Context) error {
 		{ID: "TotalAlloc", MType: "gauge", Value: float64(memStats.TotalAlloc)},
 		{ID: "RandomValue", MType: "gauge", Value: rand.Float64()},
 		{ID: "PollCount", MType: "counter", Delta: 1},
+	}
+
+	if err := ms.storage.Update(ctx, metricsToStore); err != nil {
+		log.Error().Err(err).Msg("failed to store metric")
+		return fmt.Errorf("failed to store metric: %v", err)
+	}
+	return nil
+}
+
+func (ms MemStorage) UpdateSysMetrics(ctx context.Context) error {
+	memStat, err := mem.VirtualMemoryWithContext(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get vm stats")
+		return fmt.Errorf("failed to get vm stat: %v", err)
+	}
+
+	cpuStat, err := cpu.PercentWithContext(ctx, 0, true)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to calculate the percentage of cpu used")
+		return fmt.Errorf("failed to calculate the percentage of cpu used: %v", err)
+	}
+
+	var metricsToStore []metrics.Metric
+
+	metricsToStore = append(metricsToStore,
+		metrics.Metric{ID: "TotalMemory", MType: "gauge", Value: float64(memStat.Total)},
+		metrics.Metric{ID: "FreeMemory", MType: "gauge", Value: float64(memStat.Free)},
+	)
+
+	for i, percent := range cpuStat {
+		id := fmt.Sprintf("CPUutilization%d", i+1)
+		metricsToStore = append(metricsToStore, metrics.Metric{ID: id, MType: "gauge", Value: percent})
 	}
 
 	if err := ms.storage.Update(ctx, metricsToStore); err != nil {

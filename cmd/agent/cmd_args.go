@@ -15,6 +15,7 @@ import (
 
 	agent_handler "github.com/a-palonskaa/metrics-server/internal/agent/service"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
+	workerpool "github.com/a-palonskaa/metrics-server/pkg/worker_pool"
 )
 
 func init() {
@@ -22,6 +23,7 @@ func init() {
 	cmd.PersistentFlags().IntVarP(&Flags.PollInterval, "pollinterval", "p", 2, "Metrics polling interval")
 	cmd.PersistentFlags().IntVarP(&Flags.ReportInterval, "reportinterval", "r", 10, "Metrics reporting interval")
 	cmd.PersistentFlags().StringVarP(&Flags.Key, "key", "k", "", "Key for hash")
+	cmd.PersistentFlags().IntVarP(&Flags.RateLimit, "limit", "l", 1, "Limit for requests amount")
 }
 
 var cmd = &cobra.Command{
@@ -53,27 +55,53 @@ var cmd = &cobra.Command{
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
-		client := resty.New()
-
-		handler := agent_handler.NewHandler(memstorage.New())
-
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		tickerUpdate := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
-		defer tickerUpdate.Stop()
-		tickerSend := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
-		defer tickerSend.Stop()
+		client := resty.New()
+		handler := agent_handler.NewHandler(memstorage.New())
 
-		for {
-			select {
-			case <-tickerUpdate.C:
-				handler.Update(ctx)
-			case <-tickerSend.C:
-				handler.SendMetrics(ctx, client, Flags.EndpointAddr, Flags.Key)
-			case <-sig:
-				return
+		updateTicker := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
+		defer updateTicker.Stop()
+		sendTicker := time.NewTicker(time.Duration(Flags.ReportInterval) * time.Second)
+		defer sendTicker.Stop()
+
+		w := workerpool.New(Flags.RateLimit, ctx)
+		defer w.Close()
+
+		go func() {
+			for {
+				select {
+				case <-updateTicker.C:
+					handler.UpdateRuntimeMetrics(ctx)
+					handler.UpdateSystemMetrics(ctx)
+				case <-sendTicker.C:
+					w.AddTask(func(c context.Context) error {
+						return handler.SendMetrics(c, client, Flags.EndpointAddr, Flags.Key)
+					})
+				case <-ctx.Done():
+					return
+				}
 			}
-		}
+		}()
+
+		go func() {
+			for {
+				select {
+				case err := <-w.Result():
+					switch status := err.(type) {
+					case error:
+						if status != nil {
+							log.Error().Err(status).Msg("failed to send metric")
+						}
+					}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+
+		<-sig
+		cancel()
 	},
 }
