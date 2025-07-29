@@ -1,3 +1,5 @@
+// Package database provides utilities for establishing and verifying
+// a connection to a PostgreSQL database using the pgx driver.
 package database
 
 import (
@@ -9,10 +11,14 @@ import (
 	errhandlers "github.com/a-palonskaa/metrics-server/pkg/err_handlers"
 )
 
+// DBConnector wraps a *sql.DB instance and provides methods for interacting
+// with the database connection.
 type DBConnector struct {
 	db *sql.DB
 }
 
+// NewConn initializes a new DBConnector with a connection to the given
+// PostgreSQL database address.
 func NewConn(databaseAddr string) DBConnector {
 	db, err := errhandlers.RetriableErrHadler(
 		func() (*sql.DB, error) { return sql.Open("pgx", databaseAddr) },

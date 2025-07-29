@@ -7,6 +7,9 @@ AGENT_EXECUTE := ./cmd/agent/agent
 SERVER_SOURCES = ./cmd/server/...
 SERVER_EXECUTE := ./cmd/server/server
 
+SERVER_MAIN := ./cmd/server/main.go
+SWAGGER_DIR := ./swagger/
+
 .PHONY: all deps server agent test lint
 
 all: deps server agent test lint
@@ -31,6 +34,9 @@ test_results: test
 lint: deps
 	golangci-lint run
 
+swagger:
+	swag init --generalInfo $(SERVER_MAIN) --output $(SWAGGER_DIR)
+
 clean:
-	rm -f ./cmd/agent/agent ./cmd/server/server coverage.out
+	rm -f $(AGENT_EXECUTE) $(SERVER_EXECUTE) coverage.out
 

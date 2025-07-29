@@ -27,6 +27,7 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode
 }
 
+// WithLogging creates a middleware wrapper to log request method, response status and size.
 func WithLogging(fn http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		responseData := responseData{}

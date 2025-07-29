@@ -1,3 +1,4 @@
+// Package file implements a MetricsRepository interface with memtrics storage and backup file storage.
 package file
 
 import (
@@ -14,12 +15,14 @@ import (
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 )
 
+// FileStorage provides a metrics repository with file-based backup and restore.
 type FileStorage struct {
 	mu      sync.RWMutex
 	file    *os.File
 	storage usecase.MetricsRepository
 }
 
+// New creates a new FileStorage instance.
 func New(path string, storage usecase.MetricsRepository, storeInterval int, restore bool) *FileStorage {
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {

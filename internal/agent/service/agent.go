@@ -1,3 +1,5 @@
+// Package agent provides functionality for collecting and sending runtime and system
+// metrics from a agent to a server.
 package agent
 
 import (
@@ -18,18 +20,22 @@ import (
 	hash "github.com/a-palonskaa/metrics-server/pkg/hash"
 )
 
+// AgentHadler defines a handler wrapping MemStorage usecase
 type AgentHandler struct {
 	msUsecase usecase.MemStorage
 }
 
+// NewHandler creates a new AgentHandler instance using the provided metrics repository.
 func NewHandler(storage usecase.MetricsRepository) AgentHandler {
 	return AgentHandler{
 		msUsecase: usecase.NewMemStorageUsecase(storage),
 	}
 }
 
+// SendMetrics sends all stored runtime metrics to the metrics server.
+// The request is retried if it fails, using a retriable error handler.
 func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, key string) error {
-	body := h.ListAllMetrics(ctx)
+	body := h.msUsecase.ListAllMetrics(ctx)
 
 	err := errhandler.RetriableErrHadlerVoid(
 		func() error {
@@ -43,10 +49,7 @@ func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, key
 	return nil
 }
 
-func (h AgentHandler) ListAllMetrics(ctx context.Context) metrics.Metrics {
-	return h.msUsecase.ListAllMetrics(ctx)
-}
-
+// UpdateRuntimeMetrics updates runtime metrics such as memory stats, GC, etc.
 func (h AgentHandler) UpdateRuntimeMetrics(ctx context.Context) {
 	if err := h.msUsecase.UpdateMetrics(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to update metrics")
@@ -54,12 +57,15 @@ func (h AgentHandler) UpdateRuntimeMetrics(ctx context.Context) {
 	log.Info().Msg("send metrics successfully")
 }
 
+// UpdateSystemMetrics updates system metrics such as CPU load and disk usage.
 func (h AgentHandler) UpdateSystemMetrics(ctx context.Context) {
 	if err := h.msUsecase.UpdateSysMetrics(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to update metrics")
 	}
 }
 
+// gzipWriterPool is a sync.Pool that reuses gzip.Writer instances
+// to minimize allocation overhead during metrics compression.
 var gzipWriterPool = sync.Pool{
 	New: func() any {
 		gz, err := gzip.NewWriterLevel(io.Discard, gzip.BestSpeed)
@@ -70,6 +76,9 @@ var gzipWriterPool = sync.Pool{
 	},
 }
 
+// SendRequest prepares the metrics list, compresses it using gzip,
+// optionally signs it with SHA256 hash, and sends it to the metrics server
+// via a POST request to the /updates/ endpoint.
 func (h AgentHandler) SendRequest(client *resty.Client, body metrics.Metrics, key string) error {
 	if len(body) == 0 {
 		return nil

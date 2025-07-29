@@ -1,9 +1,10 @@
+// Package main provides metrics storage server
+// made by @aliffka
 package main
 
 import (
 	"context"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"

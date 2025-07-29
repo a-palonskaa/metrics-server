@@ -151,7 +151,7 @@ func TestPostHandler(t *testing.T) {
 
 			defer func() {
 				if err := res.Body.Close(); err != nil {
-					log.Printf("failed to lcose response body: %s", err)
+					log.Printf("failed to close response body: %s", err)
 				}
 			}()
 		})
@@ -292,8 +292,6 @@ func TestAllValueHandler(t *testing.T) {
 		})
 	}
 }
-
-//SEX -
 
 func BenchmarkWithLogging(b *testing.B) {
 	logger.InitLogger("../../../logs/info.log")

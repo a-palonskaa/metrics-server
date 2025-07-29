@@ -21,6 +21,8 @@ func (w *hashResponseWriter) Write(bufer []byte) (int, error) {
 	return w.ResponseWriter.Write(bufer)
 }
 
+// CheckHash creates a middleware wrapper for checking SHA256 hash signature (optionally: command line Key) and
+// signes a response with SHA256 hash
 func CheckHash(key string) func(fn http.Handler) http.Handler {
 	return func(fn http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

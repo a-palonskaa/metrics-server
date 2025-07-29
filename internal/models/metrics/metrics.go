@@ -1,3 +1,5 @@
+// Package metrics defines data structures and helper functions for working with
+// application performance metrics of types "gauge" and "counter".
 package metrics
 
 import (
@@ -6,16 +8,24 @@ import (
 )
 
 var (
+	// ErrIncorrectMetricValue is returned when a metric value is invalid or cannot be parsed.
 	ErrIncorrectMetricValue = errors.New("incorrect value")
-	ErrIncorrectMetricType  = errors.New("incorrect type")
-	ErrUnallowedMetric      = errors.New("unallowed metric")
+	// ErrIncorrectMetricType is returned when a metric type is not recognized.
+	ErrIncorrectMetricType = errors.New("incorrect type")
+	// ErrUnallowedMetric is returned when a metric is not allowed or not found.
+	ErrUnallowedMetric = errors.New("unallowed metric")
 )
 
+// Gauge represents a metric of type "gauge" (floating-point value).
 type Gauge float64
+
+// Counter represents a metric of type "counter" (integer value).
 type Counter int64
 
 const (
-	GaugeName   = "gauge"
+	// GaugeName is the string identifier for the gauge metric type.
+	GaugeName = "gauge"
+	// CounterName is the string identifier for the counter metric type.
 	CounterName = "counter"
 )
 
@@ -31,6 +41,10 @@ func (val Counter) String() string {
 	return strconv.FormatInt(int64(val), 10)
 }
 
+// RawMetric represents the transport format of a metric.
+//
+// It includes a metric ID, type, and optional value (gauge) or delta (counter).
+//
 //easyjson:json
 type RawMetric struct {
 	ID    string   `json:"id"`
@@ -39,9 +53,14 @@ type RawMetric struct {
 	Value *float64 `json:"value,omitempty"` // gauge
 }
 
+// RawMetrics is a slice of RawMetric.
+//
 //easyjson:json
 type RawMetrics []RawMetric
 
+// Metric represents an internal representation of a metric.
+//
+// Only one of Value (for gauge) or Delta (for counter) should be set.
 type Metric struct {
 	ID    string  `json:"id"`
 	MType string  `json:"type"`
@@ -49,6 +68,8 @@ type Metric struct {
 	Value float64 `json:"value,omitempty"` // gauge
 }
 
+// Metrics is a slice of Metric.
+//
 //easyjson:json
 type Metrics []Metric
 
@@ -79,6 +100,7 @@ func NewMetric(id string, mType string, val string) (Metric, error) {
 	}
 }
 
+// IsTypeAllowed returns true if the given metric type is supported (gauge or counter).
 func IsTypeAllowed(mType string) bool {
 	return mType == GaugeName || mType == CounterName
 }
@@ -94,6 +116,7 @@ func (m Metric) StrValue() string {
 	}
 }
 
+// Serialize converts a RawMetric to a Metric.
 func (m RawMetric) Serialize() Metric {
 	if m.Delta != nil {
 		return Metric{
@@ -115,6 +138,7 @@ func (m RawMetric) Serialize() Metric {
 	}
 }
 
+// Serialize converts a RawMetrics slice to a Metrics slice.
 func (m RawMetrics) Serialize() Metrics {
 	result := make([]Metric, len(m))
 	for i := range m {
@@ -130,6 +154,7 @@ func (m RawMetrics) Serialize() Metrics {
 	return Metrics(result)
 }
 
+// Deserialize converts a Metric to a RawMetric.
 func (m Metric) Deserialize() RawMetric {
 	switch m.MType {
 	case GaugeName:
@@ -152,6 +177,7 @@ func (m Metric) Deserialize() RawMetric {
 	}
 }
 
+// Deserialize converts a Metrics slice to a RawMetrics slice.
 func (m Metrics) Deserialize() RawMetrics {
 	result := make([]RawMetric, len(m))
 	for i := range m {
