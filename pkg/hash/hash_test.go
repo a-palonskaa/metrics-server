@@ -3,8 +3,9 @@ package hash_test
 import (
 	"testing"
 
-	hash "github.com/a-palonskaa/metrics-server/pkg/hash"
 	"github.com/stretchr/testify/assert"
+
+	hash "github.com/a-palonskaa/metrics-server/pkg/hash"
 )
 
 func TestCalculate(t *testing.T) {
