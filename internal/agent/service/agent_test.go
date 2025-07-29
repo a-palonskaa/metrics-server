@@ -1,9 +1,9 @@
 package agent_test
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
@@ -23,16 +23,17 @@ func TestSendRequest(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := resty.New()
+	client := resty.New().SetBaseURL(ts.URL)
 
 	counter := int64(1)
 	gauge := float64(1.24)
 
 	type args struct {
-		client   *resty.Client
-		endpoint string
-		body     metrics.Metrics
+		client *resty.Client
+		body   metrics.Metrics
+		key    string
 	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -41,8 +42,7 @@ func TestSendRequest(t *testing.T) {
 		{
 			name: "success-case-gauge",
 			args: args{
-				client:   client,
-				endpoint: ts.URL[7:],
+				client: client,
 				body: metrics.Metrics{
 					{
 						ID:    "Frees",
@@ -50,14 +50,14 @@ func TestSendRequest(t *testing.T) {
 						Value: gauge,
 					},
 				},
+				key: "",
 			},
 			wantErr: false,
 		},
 		{
 			name: "success-case-counter",
 			args: args{
-				client:   client,
-				endpoint: ts.URL[7:],
+				client: client,
 				body: metrics.Metrics{
 					{
 						ID:    "Frees",
@@ -65,43 +65,29 @@ func TestSendRequest(t *testing.T) {
 						Delta: counter,
 					},
 				},
+				key: "",
 			},
 			wantErr: false,
 		},
 		{
 			name: "empty-body",
 			args: args{
-				client:   client,
-				endpoint: ts.URL[7:],
-				body:     metrics.Metrics{},
+				client: client,
+				body:   metrics.Metrics{},
+				key:    "",
 			},
 			wantErr: false,
-		},
-		{
-			name: "invalid-url",
-			args: args{
-				client:   client,
-				endpoint: "",
-				body: metrics.Metrics{
-					{
-						ID:    "Frees",
-						MType: "counter",
-						Delta: counter,
-					},
-				},
-			},
-			wantErr: true,
 		},
 	}
 
 	handler := agent.NewHandler(memstorage.New())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := handler.SendMetrics(context.TODO(), tt.args.client, tt.args.endpoint, tt.args.body, "")
-			if !tt.wantErr {
+			err := handler.SendRequest(tt.args.client, tt.args.body, tt.args.key)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
 				require.NoError(t, err)
-			} else if err == nil {
-				t.Errorf("func must return an error")
 			}
 		})
 	}
@@ -112,7 +98,6 @@ func TestSendRequestWithHash(t *testing.T) {
 		if r.Header.Get("Content-Encoding") != "gzip" {
 			t.Error("Missing gzip content encoding")
 		}
-
 		if r.Header.Get("HashSHA256") == "" {
 			t.Error("Missing HashSHA256 header")
 		}
@@ -120,60 +105,83 @@ func TestSendRequestWithHash(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := resty.New()
+	client := resty.New().SetBaseURL(ts.URL)
 
 	counter := int64(1)
 	gauge := float64(1.24)
 
-	type args struct {
-		client   *resty.Client
-		endpoint string
-		body     metrics.Metrics
-	}
 	tests := []struct {
 		name    string
-		args    args
+		body    metrics.Metrics
 		wantErr bool
 	}{
 		{
-			name: "success-case-gauge",
-			args: args{
-				client:   client,
-				endpoint: ts.URL[7:],
-				body: metrics.Metrics{
-					{
-						ID:    "Frees",
-						MType: "gauge",
-						Value: gauge,
-					},
+			name: "with-hash-gauge",
+			body: metrics.Metrics{
+				{
+					ID:    "Alloc",
+					MType: "gauge",
+					Value: gauge,
 				},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
-			name: "success-case-gauge",
-			args: args{
-				client:   client,
-				endpoint: ts.URL[7:],
-				body: metrics.Metrics{
-					{
-						ID:    "Frees",
-						MType: "counter",
-						Delta: counter,
-					},
+			name: "with-hash-counter",
+			body: metrics.Metrics{
+				{
+					ID:    "PollCount",
+					MType: "counter",
+					Delta: counter,
 				},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 
 	handler := agent.NewHandler(memstorage.New())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := handler.SendMetrics(context.TODO(), tt.args.client, tt.args.endpoint, tt.args.body, "key")
-			if !tt.wantErr {
+			err := handler.SendRequest(client, tt.body, "key")
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
 				require.NoError(t, err)
 			}
 		})
+	}
+}
+
+func BenchmarkSendRequest(b *testing.B) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	handler := agent.NewHandler(memstorage.New())
+	client := resty.New().SetBaseURL(server.URL)
+
+	const count = 50
+	metric := make([]metrics.Metric, count)
+	for i := 0; i < count; i++ {
+		id := strconv.Itoa(i)
+		if i%2 == 0 {
+			metric[i] = metrics.Metric{
+				ID:    id,
+				MType: metrics.GaugeName,
+				Value: float64(i),
+			}
+		} else {
+			metric[i] = metrics.Metric{
+				ID:    id,
+				MType: metrics.CounterName,
+				Delta: int64(i),
+			}
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = handler.SendRequest(client, metric, "aliffka")
 	}
 }

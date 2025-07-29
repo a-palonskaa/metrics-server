@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,7 +16,6 @@ import (
 	"github.com/spf13/cobra"
 
 	agent_handler "github.com/a-palonskaa/metrics-server/internal/agent/service"
-	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
 	workerpool "github.com/a-palonskaa/metrics-server/pkg/worker_pool"
 )
@@ -56,10 +57,16 @@ var cmd = &cobra.Command{
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
+		go func() {
+			if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+				log.Error().Err(err).Msg("pprof server error")
+			}
+		}()
+
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		client := resty.New()
+		client := resty.New().SetBaseURL("http://" + Flags.EndpointAddr)
 		handler := agent_handler.NewHandler(memstorage.New())
 
 		updateTicker := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
@@ -78,7 +85,7 @@ var cmd = &cobra.Command{
 					handler.UpdateSystemMetrics(ctx)
 				case <-sendTicker.C:
 					w.AddTask(func(c context.Context) error {
-						return handler.SendMetrics(c, client, Flags.EndpointAddr, Flags.Key)
+						return handler.SendMetrics(c, client, Flags.Key)
 					})
 				case <-ctx.Done():
 					return

@@ -16,6 +16,8 @@ import (
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 )
 
+var metricsTemplate = template.Must(template.New("metrics").Parse(htmlTemplate))
+
 const htmlTemplate = `
 <html>
 <body>
@@ -70,6 +72,8 @@ func (h ServerHandler) Router(r *chi.Mux) *chi.Mux {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
 	r.Use(CheckHash(h.key))
+
+	r.Mount("/debug/pprof", http.DefaultServeMux)
 
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", h.Root)
@@ -128,6 +132,7 @@ func (h ServerHandler) GetMetricByBody(w http.ResponseWriter, r *http.Request) {
 
 	if r.ContentLength == 0 {
 		w.WriteHeader(http.StatusBadRequest)
+		log.Error().Msg("zero len body")
 		return
 	}
 
@@ -306,8 +311,7 @@ func (h ServerHandler) GetAllStoredMetrics(w http.ResponseWriter, r *http.Reques
 		Metrics: metricsList,
 	}
 
-	t := template.Must(template.New("metrics").Parse(htmlTemplate))
-	if err := t.Execute(w, data); err != nil {
+	if err := metricsTemplate.Execute(w, data); err != nil {
 		log.Error().Err(err).Msg("error executing template")
 		http.Error(w, "Template error", http.StatusInternalServerError)
 	}

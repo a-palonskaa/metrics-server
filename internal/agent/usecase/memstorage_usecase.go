@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"runtime"
+	"strconv"
 
 	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -83,7 +84,7 @@ func (ms MemStorage) UpdateSysMetrics(ctx context.Context) error {
 		return fmt.Errorf("failed to calculate the percentage of cpu used: %v", err)
 	}
 
-	var metricsToStore []metrics.Metric
+	metricsToStore := make([]metrics.Metric, 0, 2+len(cpuStat))
 
 	metricsToStore = append(metricsToStore,
 		metrics.Metric{ID: "TotalMemory", MType: "gauge", Value: float64(memStat.Total)},
@@ -91,7 +92,7 @@ func (ms MemStorage) UpdateSysMetrics(ctx context.Context) error {
 	)
 
 	for i, percent := range cpuStat {
-		id := fmt.Sprintf("CPUutilization%d", i+1)
+		id := "CPUutilization" + strconv.Itoa(i+1)
 		metricsToStore = append(metricsToStore, metrics.Metric{ID: id, MType: "gauge", Value: percent})
 	}
 

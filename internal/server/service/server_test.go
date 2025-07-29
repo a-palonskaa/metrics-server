@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -9,10 +10,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 
+	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	database "github.com/a-palonskaa/metrics-server/internal/repository/database"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
 	server "github.com/a-palonskaa/metrics-server/internal/server/service"
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
+	logger "github.com/a-palonskaa/metrics-server/pkg/logger"
 )
 
 func TestPostHandler(t *testing.T) {
@@ -287,5 +290,60 @@ func TestAllValueHandler(t *testing.T) {
 				}
 			}()
 		})
+	}
+}
+
+//SEX -
+
+func BenchmarkWithLogging(b *testing.B) {
+	logger.InitLogger("../../../logs/info.log")
+	handler := server.WithLogging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest("GET", "/", nil)
+	rr := httptest.NewRecorder()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handler.ServeHTTP(rr, req)
+	}
+}
+
+func BenchmarkWithCompression(b *testing.B) {
+	handler := server.WithCompression(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	rr := httptest.NewRecorder()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handler.ServeHTTP(rr, req)
+	}
+}
+
+func BenchmarkGetAllStoredMetrics(b *testing.B) {
+	msUsecase := usecase.NewMemStorage(memstorage.New())
+	pingUsecase := usecase.NewPing(database.NewConn(""))
+
+	handler := server.New(server.Params{
+		MsUsecase:   msUsecase,
+		PingUsecase: pingUsecase,
+	})
+
+	_ = msUsecase.UpdateMetrics(context.TODO(), []metrics.Metric{
+		{ID: "heap", MType: "gauge", Value: float64(123.45)},
+		{ID: "requests", MType: "counter", Delta: int64(99)},
+	})
+
+	req := httptest.NewRequest("GET", "/value/", nil)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
+		handler.GetAllStoredMetrics(rr, req)
 	}
 }

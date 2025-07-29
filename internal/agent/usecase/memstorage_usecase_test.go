@@ -156,3 +156,23 @@ func TestMemStorage_UpdateSysMetrics(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkUpdateMetrics(b *testing.B) {
+	ctx := context.TODO()
+	memStorage := usecase.NewMemStorageUsecase(memstorage.New())
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = memStorage.UpdateMetrics(ctx)
+	}
+}
+
+func BenchmarkSysMetrics(b *testing.B) {
+	ctx := context.Background()
+	memStorage := usecase.NewMemStorageUsecase(memstorage.New())
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = memStorage.UpdateSysMetrics(ctx)
+	}
+}

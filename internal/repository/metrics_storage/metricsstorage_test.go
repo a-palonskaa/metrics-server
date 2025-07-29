@@ -3,6 +3,7 @@ package metricsstorage_test
 import (
 	"context"
 	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -134,4 +135,34 @@ func TestMetricsStorage_Close(t *testing.T) {
 	storage := memstorage.New()
 	err := storage.Close()
 	require.NoError(t, err)
+}
+
+func BenchmarkUpdate(b *testing.B) {
+	storage := memstorage.New()
+
+	const count = 50
+	testMetrics := make(metrics.Metrics, count)
+	for i := 0; i < count; i++ {
+		id := strconv.Itoa(i)
+		if i%2 == 0 {
+			testMetrics[i] = metrics.Metric{
+				ID:    id,
+				MType: metrics.GaugeName,
+				Value: float64(i),
+			}
+		} else {
+			testMetrics[i] = metrics.Metric{
+				ID:    id,
+				MType: metrics.CounterName,
+				Delta: int64(i),
+			}
+		}
+	}
+
+	b.ResetTimer()
+	b.Run("meow", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = storage.Update(context.TODO(), testMetrics)
+		}
+	})
 }

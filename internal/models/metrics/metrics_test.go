@@ -1,6 +1,7 @@
 package metrics_test
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -365,6 +366,67 @@ func TestDeserialize(t *testing.T) {
 				resultAfter := tt.expected.Deserialize()
 				assert.Equal(t, resultAfter, tt.input)
 			})
+		}
+	})
+}
+
+func BenchmarkDeserializeMetrics(b *testing.B) {
+	const count = 50
+	metric := make([]metrics.Metric, count)
+	for i := 0; i < count; i++ {
+		id := strconv.Itoa(i)
+		if i%2 == 0 {
+			metric[i] = metrics.Metric{
+				ID:    id,
+				MType: metrics.GaugeName,
+				Value: float64(i),
+			}
+		} else {
+			metric[i] = metrics.Metric{
+				ID:    id,
+				MType: metrics.CounterName,
+				Delta: int64(i),
+			}
+		}
+	}
+
+	mt := metrics.Metrics(metric)
+	b.ResetTimer()
+	b.Run("meow", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			mt.Deserialize()
+		}
+	})
+}
+
+func BenchmarkSerializeMetrics(b *testing.B) {
+	const count = 50
+	rawMetrics := make([]metrics.RawMetric, count)
+	for i := 0; i < count; i++ {
+		id := strconv.Itoa(i)
+		if i%2 == 0 {
+			val := float64(i)
+			rawMetrics[i] = metrics.RawMetric{
+				ID:    id,
+				MType: metrics.GaugeName,
+				Value: &val,
+			}
+		} else {
+			delta := int64(i)
+			rawMetrics[i] = metrics.RawMetric{
+				ID:    id,
+				MType: metrics.CounterName,
+				Delta: &delta,
+			}
+		}
+	}
+
+	rmt := metrics.RawMetrics(rawMetrics)
+	b.ResetTimer()
+
+	b.Run("meow", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			rmt.Serialize()
 		}
 	})
 }
