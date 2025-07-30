@@ -151,6 +151,10 @@ func (fs *FileStorage) Save(ctx context.Context) error {
 		log.Error().Err(err).Msgf("moving file prt to begining %v", fs.file)
 		return fmt.Errorf("moving file prt to begining %v", err)
 	}
+	if err := fs.file.Truncate(0); err != nil {
+		log.Error().Err(err).Msgf("error truncating file %v", fs.file)
+		return fmt.Errorf("error truncating file: %v", err)
+	}
 
 	if _, err := fs.file.Write(data); err != nil {
 		log.Error().Err(err).Msg("error writing data to ostream")
