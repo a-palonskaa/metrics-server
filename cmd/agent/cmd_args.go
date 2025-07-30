@@ -22,11 +22,12 @@ import (
 )
 
 func init() {
-	cmd.PersistentFlags().StringVarP(&Flags.EndpointAddr, "address", "a", "localhost:8080", "Server endpoint address")
-	cmd.PersistentFlags().IntVarP(&Flags.PollInterval, "pollinterval", "p", 2, "Metrics polling interval")
-	cmd.PersistentFlags().IntVarP(&Flags.ReportInterval, "reportinterval", "r", 10, "Metrics reporting interval")
-	cmd.PersistentFlags().StringVarP(&Flags.Key, "key", "k", "", "Key for hash")
-	cmd.PersistentFlags().IntVarP(&Flags.RateLimit, "limit", "l", 1, "Limit for requests amount")
+	cmd.PersistentFlags().StringVarP(&Flags.EndpointAddr, "address", "a", defaultEndpointAddr, "Server endpoint address")
+	cmd.PersistentFlags().IntVarP(&Flags.PollInterval, "pollinterval", "p", defaultPollInterval, "Metrics polling interval")
+	cmd.PersistentFlags().IntVarP(&Flags.ReportInterval, "reportinterval", "r", defaultReportInterval, "Metrics reporting interval")
+	cmd.PersistentFlags().StringVarP(&Flags.Key, "key", "k", defaultKey, "Key for hash")
+	cmd.PersistentFlags().IntVarP(&Flags.RateLimit, "limit", "l", defaultRateLimit, "Limit for requests amount")
+	cmd.PersistentFlags().StringVarP(&Flags.ConfigFile, "config", "c", defaultConfigFile, "Config file")
 }
 
 var cmd = &cobra.Command{
@@ -44,14 +45,21 @@ var cmd = &cobra.Command{
 		color.New(color.FgCyan).Sprint("@aliffka") +
 		"\t\x1b]8;;\x1b\\",
 	PreRun: func(cmd *cobra.Command, args []string) {
-		var cfg Config
+		var cfg ParamsConfig
 		err := env.Parse(&cfg)
 		if err != nil {
 			log.Error().Msgf("environment variables parsing error")
 			return
 		}
+		setConfigFile(&cfg)
 
-		setFlags(&cfg)
+		var fileCfg ParamsConfig
+		if err := parseConfigFile(Flags.ConfigFile, &fileCfg); err != nil {
+			log.Error().Msg("config file parsing error\n")
+			return
+		}
+
+		setFlags(&cfg, &fileCfg)
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {

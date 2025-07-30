@@ -25,12 +25,13 @@ import (
 )
 
 func init() {
-	cmd.PersistentFlags().StringVarP(&Flags.EndpointAddr, "a", "a", "localhost:8080", "endpoint HTTP-server adress")
-	cmd.PersistentFlags().IntVarP(&Flags.StoreInterval, "i", "i", 300, "Saving server data interval")
-	cmd.PersistentFlags().BoolVarP(&Flags.Restore, "r", "r", true, "Saving or not data saved before")
-	cmd.PersistentFlags().StringVarP(&Flags.FileStoragePath, "f", "f", "server-data.txt", "Filepath")
-	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", "", "Database filepath")
-	cmd.PersistentFlags().StringVarP(&Flags.Key, "k", "k", "", "Key for hash")
+	cmd.PersistentFlags().StringVarP(&Flags.EndpointAddr, "a", "a", defaultEndpointAddr, "endpoint HTTP-server adress")
+	cmd.PersistentFlags().IntVarP(&Flags.StoreInterval, "i", "i", defaultStoreInterval, "Saving server data interval")
+	cmd.PersistentFlags().BoolVarP(&Flags.Restore, "r", "r", defaultRestore, "Saving or not data saved before")
+	cmd.PersistentFlags().StringVarP(&Flags.FileStoragePath, "f", "f", defaultFileStoragePath, "Filepath")
+	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", defaultDatabaseAddr, "Database filepath")
+	cmd.PersistentFlags().StringVarP(&Flags.Key, "k", "k", defaultKey, "Key for hash")
+	cmd.PersistentFlags().StringVarP(&Flags.ConfigFile, "config", "c", defaultConfigFile, "Config file")
 }
 
 var cmd = &cobra.Command{
@@ -48,13 +49,20 @@ var cmd = &cobra.Command{
 		color.New(color.FgCyan).Sprint("@aliffka") +
 		"\t\x1b]8;;\x1b\\"),
 	PreRun: func(cmd *cobra.Command, args []string) {
-		var cfg Config
+		var cfg ParamsConfig
 		if err := env.Parse(&cfg); err != nil {
 			log.Error().Msg("environment variables parsing error\n")
 			return
 		}
+		setConfigFile(&cfg)
 
-		setFlags(&cfg)
+		var fileCfg ParamsConfig
+		if err := parseConfigFile(Flags.ConfigFile, &fileCfg); err != nil {
+			log.Error().Msg("config file parsing error\n")
+			return
+		}
+
+		setFlags(&cfg, &fileCfg)
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
