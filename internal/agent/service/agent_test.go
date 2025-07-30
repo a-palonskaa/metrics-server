@@ -1,6 +1,7 @@
 package agent_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -143,6 +144,85 @@ func TestSendRequestWithHash(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := handler.SendRequest(client, tt.body, "key")
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestSendMetrics(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Content-Encoding") != "gzip" {
+			t.Error("Missing gzip content encoding")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	client := resty.New().SetBaseURL(ts.URL)
+
+	counter := int64(1)
+	gauge := float64(1.24)
+
+	type args struct {
+		client *resty.Client
+		body   metrics.Metrics
+		key    string
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "success-case-gauge",
+			args: args{
+				client: client,
+				body: metrics.Metrics{
+					{
+						ID:    "Frees",
+						MType: "gauge",
+						Value: gauge,
+					},
+				},
+				key: "",
+			},
+			wantErr: false,
+		},
+		{
+			name: "success-case-counter",
+			args: args{
+				client: client,
+				body: metrics.Metrics{
+					{
+						ID:    "Frees",
+						MType: "counter",
+						Delta: counter,
+					},
+				},
+				key: "",
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty-body",
+			args: args{
+				client: client,
+				body:   metrics.Metrics{},
+				key:    "",
+			},
+			wantErr: false,
+		},
+	}
+
+	handler := agent.NewHandler(memstorage.New())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := handler.SendMetrics(context.TODO(), tt.args.client, tt.args.key)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
