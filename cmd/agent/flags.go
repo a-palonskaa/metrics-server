@@ -36,9 +36,9 @@ type Config struct {
 type ParamsConfig struct {
 	EndpointAddr   string `env:"ADDRESS" json:"address"`
 	ReportInterval *int   `env:"STORE_INTERVAL" json:"store_interval,omitempty"`
-	PollInterval   *int   `env:"POLL_INTERVAL" json:"poll_interval, omitempty"`
+	PollInterval   *int   `env:"POLL_INTERVAL" json:"poll_interval,omitempty"`
 	Key            string `env:"KEY" json:"crypto_key"`
-	RateLimit      *int   `env:"RATE_LIMIT" json:"rate_limit, omitempty"`
+	RateLimit      *int   `env:"RATE_LIMIT" json:"rate_limit,omitempty"`
 	ConfigFile     string `env:"CONFIG"`
 }
 
