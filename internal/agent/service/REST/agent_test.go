@@ -10,7 +10,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/require"
 
-	agent "github.com/a-palonskaa/metrics-server/internal/agent/service"
+	agent "github.com/a-palonskaa/metrics-server/internal/agent/service/REST"
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
 )

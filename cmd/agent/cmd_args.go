@@ -16,7 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	agent_handler "github.com/a-palonskaa/metrics-server/internal/agent/service"
+	agent_handler "github.com/a-palonskaa/metrics-server/internal/agent/service/REST"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
 	workerpool "github.com/a-palonskaa/metrics-server/pkg/worker_pool"
 )

@@ -20,7 +20,7 @@ import (
 
 	repo "github.com/a-palonskaa/metrics-server/internal/repository"
 	database "github.com/a-palonskaa/metrics-server/internal/repository/database"
-	service "github.com/a-palonskaa/metrics-server/internal/server/service"
+	service "github.com/a-palonskaa/metrics-server/internal/server/service/REST"
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 )
 

@@ -1,4 +1,4 @@
-package server_test
+package serverREST_test
 
 import (
 	"bytes"
@@ -18,7 +18,7 @@ import (
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	database "github.com/a-palonskaa/metrics-server/internal/repository/database"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
-	server "github.com/a-palonskaa/metrics-server/internal/server/service"
+	server "github.com/a-palonskaa/metrics-server/internal/server/service/REST"
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 	hash "github.com/a-palonskaa/metrics-server/pkg/hash"
 	logger "github.com/a-palonskaa/metrics-server/pkg/logger"
