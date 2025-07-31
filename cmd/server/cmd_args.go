@@ -32,6 +32,7 @@ func init() {
 	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", defaultDatabaseAddr, "Database filepath")
 	cmd.PersistentFlags().StringVarP(&Flags.Key, "k", "k", defaultKey, "Key for hash")
 	cmd.PersistentFlags().StringVarP(&Flags.ConfigFile, "config", "c", defaultConfigFile, "Config file")
+	cmd.PersistentFlags().StringVarP(&Flags.TrustedSubnet, "t", "t", defaultTrustedSubnet, "Trusted Sunnet")
 }
 
 var cmd = &cobra.Command{
@@ -91,9 +92,10 @@ var cmd = &cobra.Command{
 		pingUsecase := usecase.NewPing(connector)
 
 		serverHandler := service.New(service.Params{
-			MsUsecase:   msUsecase,
-			PingUsecase: pingUsecase,
-			Key:         Flags.Key,
+			MsUsecase:     msUsecase,
+			PingUsecase:   pingUsecase,
+			Key:           Flags.Key,
+			TrustedSubnet: Flags.TrustedSubnet,
 		})
 
 		r := chi.NewRouter()

@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"net"
 	"sync"
 
 	"github.com/go-resty/resty/v2"
@@ -18,6 +19,10 @@ import (
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 	errhandler "github.com/a-palonskaa/metrics-server/pkg/err_handlers"
 	hash "github.com/a-palonskaa/metrics-server/pkg/hash"
+)
+
+const (
+	cloudflareDNSAddr = "1.1.1.1:80"
 )
 
 // AgentHadler defines a handler wrapping MemStorage usecase
@@ -110,6 +115,7 @@ func (h AgentHandler) SendRequest(client *resty.Client, body metrics.Metrics, ke
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept-Encoding", "gzip").
 		SetHeader("Content-Encoding", "gzip").
+		SetHeader("X-Real-IP", getIP()).
 		SetBody(buf.Bytes())
 
 	if key != "" {
@@ -126,4 +132,24 @@ func (h AgentHandler) SendRequest(client *resty.Client, body metrics.Metrics, ke
 		return fmt.Errorf("failed to send request w metrics update to server: %v", err)
 	}
 	return nil
+}
+
+func getIP() string {
+	conn, err := net.Dial("udp", cloudflareDNSAddr)
+	if err != nil {
+		log.Info().Err(err).Msgf("failed to connect to the %s", cloudflareDNSAddr)
+		return ""
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Info().Err(err).Msgf("failed to close conn to %s", cloudflareDNSAddr)
+		}
+	}()
+	addr := conn.LocalAddr().String()
+	hostIP, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		log.Info().Err(err).Msgf("failed to split a network address %s to host and port", addr)
+		return ""
+	}
+	return hostIP
 }

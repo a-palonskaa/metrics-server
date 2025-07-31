@@ -51,28 +51,32 @@ const htmlTemplate = `
 </html>`
 
 type Params struct {
-	MsUsecase   usecase.MemStorage
-	PingUsecase usecase.Ping
-	Key         string
+	MsUsecase     usecase.MemStorage
+	PingUsecase   usecase.Ping
+	Key           string
+	TrustedSubnet string
 }
 
 type ServerHandler struct {
-	msUsecase   usecase.MemStorage
-	pingUsecase usecase.Ping
-	key         string
+	msUsecase     usecase.MemStorage
+	pingUsecase   usecase.Ping
+	key           string
+	trustedSubnet string
 }
 
 func New(p Params) ServerHandler {
 	return ServerHandler{
-		msUsecase:   p.MsUsecase,
-		pingUsecase: p.PingUsecase,
-		key:         p.Key,
+		msUsecase:     p.MsUsecase,
+		pingUsecase:   p.PingUsecase,
+		key:           p.Key,
+		trustedSubnet: p.TrustedSubnet,
 	}
 }
 
 func (h ServerHandler) Router(r *chi.Mux) *chi.Mux {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
+	r.Use(ValidateIP(h.trustedSubnet))
 	r.Use(CheckHash(h.key))
 
 	r.Mount("/debug/pprof", http.DefaultServeMux)
