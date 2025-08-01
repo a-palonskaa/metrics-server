@@ -3,7 +3,10 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
+	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,10 +20,15 @@ import (
 	_ "github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/encoding"
+	"google.golang.org/grpc/reflection" //DEBUG
 
+	proto "github.com/a-palonskaa/metrics-server/gen/proto"
 	repo "github.com/a-palonskaa/metrics-server/internal/repository"
 	database "github.com/a-palonskaa/metrics-server/internal/repository/database"
-	service "github.com/a-palonskaa/metrics-server/internal/server/service/REST"
+	serverREST "github.com/a-palonskaa/metrics-server/internal/server/service/REST"
+	serverGRPC "github.com/a-palonskaa/metrics-server/internal/server/service/gRPC"
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 )
 
@@ -32,7 +40,8 @@ func init() {
 	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", defaultDatabaseAddr, "Database filepath")
 	cmd.PersistentFlags().StringVarP(&Flags.Key, "k", "k", defaultKey, "Key for hash")
 	cmd.PersistentFlags().StringVarP(&Flags.ConfigFile, "config", "c", defaultConfigFile, "Config file")
-	cmd.PersistentFlags().StringVarP(&Flags.TrustedSubnet, "t", "t", defaultTrustedSubnet, "Trusted Sunnet")
+	cmd.PersistentFlags().StringVarP(&Flags.TrustedSubnet, "t", "t", defaultTrustedSubnet, "Trusted Subnet")
+	cmd.PersistentFlags().StringVarP(&Flags.Protocol, "protocol", "p", defaultProtocol, "Protocol(rest/grpc)")
 }
 
 var cmd = &cobra.Command{
@@ -67,12 +76,6 @@ var cmd = &cobra.Command{
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
 		memStorage := repo.New(repo.NewParams{
 			DatabaseAddr:  Flags.DatabaseAddr,
 			FilePath:      Flags.FileStoragePath,
@@ -91,42 +94,123 @@ var cmd = &cobra.Command{
 		msUsecase := usecase.NewMemStorage(memStorage)
 		pingUsecase := usecase.NewPing(connector)
 
-		serverHandler := service.New(service.Params{
-			MsUsecase:     msUsecase,
-			PingUsecase:   pingUsecase,
-			Key:           Flags.Key,
-			TrustedSubnet: Flags.TrustedSubnet,
-		})
-
-		r := chi.NewRouter()
-		r = serverHandler.Router(r)
-
-		serverErr := make(chan error, 1)
-		defer close(serverErr)
-
-		server := &http.Server{
-			Addr:    Flags.EndpointAddr,
-			Handler: r,
+		var err error
+		switch Flags.Protocol {
+		case restAPI:
+			err = runRESTServer(msUsecase, pingUsecase)
+		case grpcAPI:
+			err = runGRPCServer(msUsecase, pingUsecase)
+		default:
+			log.Info().Msg("unsupported protocol: " + Flags.Protocol)
 		}
 
-		go func() {
-			if err := server.ListenAndServe(); err != nil {
-				serverErr <- err
-				return
-			}
-		}()
-
-		select {
-		case err := <-serverErr:
+		if err != nil {
 			log.Error().Err(err).Msg("server error")
-			cancel()
-			return
-		case <-sig:
-			if err := server.Shutdown(ctx); err != nil {
-				if closeErr := server.Close(); closeErr != nil {
-					log.Error().Err(closeErr).Msg("shutdown error")
-				}
-			}
 		}
 	},
+}
+
+func runRESTServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error {
+	serverHandler := serverREST.New(serverREST.Params{
+		MsUsecase:     msUsecase,
+		PingUsecase:   pingUsecase,
+		Key:           Flags.Key,
+		TrustedSubnet: Flags.TrustedSubnet,
+	})
+
+	r := chi.NewRouter()
+	r = serverHandler.Router(r)
+
+	server := &http.Server{
+		Addr:    Flags.EndpointAddr,
+		Handler: r,
+	}
+
+	serverErr := make(chan error, 1)
+	defer close(serverErr)
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			serverErr <- err
+		}
+	}()
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sig)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	select {
+	case err := <-serverErr:
+		return err
+	case <-sig:
+		if err := server.Shutdown(ctx); err != nil {
+			if closeErr := server.Close(); closeErr != nil {
+				log.Error().Err(closeErr).Msg("shutdown error")
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func init() {
+	encoding.RegisterCompressor(&gzipCompressor{})
+}
+
+type gzipCompressor struct{}
+
+func (c *gzipCompressor) Name() string {
+	return "gzip"
+}
+
+func (c *gzipCompressor) Compress(w io.Writer) (io.WriteCloser, error) {
+	return gzip.NewWriterLevel(w, gzip.BestSpeed)
+}
+
+func (c *gzipCompressor) Decompress(r io.Reader) (io.Reader, error) {
+	return gzip.NewReader(r)
+}
+
+func runGRPCServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error {
+	server := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(serverGRPC.LoggerInterceptor),
+		grpc.ChainUnaryInterceptor(serverGRPC.IPValidationInterceptor(Flags.TrustedSubnet)),
+	)
+
+	handler := serverGRPC.NewServerHandler(serverGRPC.Params{
+		MsUsecase:     msUsecase,
+		PingUsecase:   pingUsecase,
+		Key:           Flags.Key,
+		TrustedSubnet: Flags.TrustedSubnet,
+	})
+
+	proto.RegisterMetricsServiceServer(server, handler)
+	reflection.Register(server)
+
+	listen, err := net.Listen("tcp", Flags.EndpointAddr)
+	if err != nil {
+		return err
+	}
+
+	serverErr := make(chan error, 1)
+	defer close(serverErr)
+	go func() {
+		if err := server.Serve(listen); err != nil {
+			serverErr <- err
+		}
+	}()
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sig)
+
+	select {
+	case err := <-serverErr:
+		return err
+	case <-sig:
+		server.GracefulStop()
+		return nil
+	}
 }

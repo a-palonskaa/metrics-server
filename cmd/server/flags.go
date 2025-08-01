@@ -13,6 +13,9 @@ import (
 const (
 	minPort int = 1
 	maxPort int = 65535
+
+	restAPI string = "rest"
+	grpcAPI string = "grpc"
 )
 
 const (
@@ -24,6 +27,7 @@ const (
 	defaultKey             = ""
 	defaultConfigFile      = "" // ./internal/configs/server_config.json
 	defaultTrustedSubnet   = ""
+	defaultProtocol        = "rest"
 )
 
 type Config struct {
@@ -35,6 +39,7 @@ type Config struct {
 	Key             string
 	ConfigFile      string
 	TrustedSubnet   string
+	Protocol        string
 }
 
 type ParamsConfig struct {
@@ -46,6 +51,7 @@ type ParamsConfig struct {
 	Key             string `env:"KEY" json:"crypto_key"`
 	ConfigFile      string `env:"CONFIG"`
 	TrustedSubnet   string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
+	Protocol        string `env:"PROTOCOL" json:"protocol"`
 }
 
 var Flags Config
@@ -121,6 +127,12 @@ func setFlags(cfg *ParamsConfig, fileCfg *ParamsConfig) {
 		Flags.TrustedSubnet = cfg.TrustedSubnet
 	} else if fileCfg.TrustedSubnet != "" && Flags.TrustedSubnet == defaultDatabaseAddr {
 		Flags.TrustedSubnet = fileCfg.TrustedSubnet
+	}
+
+	if cfg.Protocol != "" {
+		Flags.Protocol = cfg.Protocol
+	} else if fileCfg.Protocol != "" && Flags.Protocol == defaultProtocol {
+		Flags.Protocol = fileCfg.Protocol
 	}
 }
 
