@@ -25,8 +25,8 @@ import (
 	proto "github.com/a-palonskaa/metrics-server/gen/proto"
 	repo "github.com/a-palonskaa/metrics-server/internal/repository"
 	database "github.com/a-palonskaa/metrics-server/internal/repository/database"
-	serverREST "github.com/a-palonskaa/metrics-server/internal/server/service/REST"
-	serverGRPC "github.com/a-palonskaa/metrics-server/internal/server/service/gRPC"
+	serverrest "github.com/a-palonskaa/metrics-server/internal/server/service/REST"
+	servergrpc "github.com/a-palonskaa/metrics-server/internal/server/service/gRPC"
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 )
 
@@ -109,7 +109,7 @@ var cmd = &cobra.Command{
 }
 
 func runRESTServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error {
-	serverHandler := serverREST.New(serverREST.Params{
+	serverHandler := serverrest.New(serverrest.Params{
 		MsUsecase:     msUsecase,
 		PingUsecase:   pingUsecase,
 		Key:           Flags.Key,
@@ -155,11 +155,11 @@ func runRESTServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error
 
 func runGRPCServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error {
 	server := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(serverGRPC.LoggerInterceptor),
-		grpc.ChainUnaryInterceptor(serverGRPC.IPValidationInterceptor(Flags.TrustedSubnet)),
+		grpc.ChainUnaryInterceptor(servergrpc.LoggerInterceptor),
+		grpc.ChainUnaryInterceptor(servergrpc.IPValidationInterceptor(Flags.TrustedSubnet)),
 	)
 
-	handler := serverGRPC.NewServerHandler(serverGRPC.Params{
+	handler := servergrpc.NewServerHandler(servergrpc.Params{
 		MsUsecase:     msUsecase,
 		PingUsecase:   pingUsecase,
 		Key:           Flags.Key,

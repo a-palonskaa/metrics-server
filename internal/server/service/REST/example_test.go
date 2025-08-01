@@ -1,4 +1,4 @@
-package serverREST_test
+package serverrest_test
 
 import (
 	"bytes"

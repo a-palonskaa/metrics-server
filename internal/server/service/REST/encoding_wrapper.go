@@ -1,4 +1,4 @@
-package serverREST
+package serverrest
 
 import (
 	"compress/gzip"

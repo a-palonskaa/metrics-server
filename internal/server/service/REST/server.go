@@ -1,6 +1,6 @@
 // Package server provides router for server, http-requests handlers,
 // middlewares for logging, encoding, hash signature checking
-package serverREST
+package serverrest
 
 import (
 	"bytes"
