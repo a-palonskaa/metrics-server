@@ -21,8 +21,8 @@ import (
 
 	proto "github.com/a-palonskaa/metrics-server/gen/proto"
 	service "github.com/a-palonskaa/metrics-server/internal/agent/service"
-	agentREST "github.com/a-palonskaa/metrics-server/internal/agent/service/REST"
-	agentGRPC "github.com/a-palonskaa/metrics-server/internal/agent/service/gRPC"
+	agentrest "github.com/a-palonskaa/metrics-server/internal/agent/service/REST"
+	agentgrpc "github.com/a-palonskaa/metrics-server/internal/agent/service/gRPC"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
 	workerpool "github.com/a-palonskaa/metrics-server/pkg/worker_pool"
 )
@@ -74,12 +74,12 @@ var cmd = &cobra.Command{
 		switch Flags.Protocol {
 		case restAPI:
 			client := resty.New().SetBaseURL("http://" + Flags.EndpointAddr)
-			handler = agentREST.NewHandler(memstorage.New(), Flags.Key, client)
+			handler = agentrest.NewHandler(memstorage.New(), Flags.Key, client)
 		case grpcAPI:
 			conn, err := grpc.NewClient(Flags.EndpointAddr,
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 				grpc.WithDefaultCallOptions(grpc.UseCompressor("gzip")),
-				grpc.WithChainUnaryInterceptor(agentGRPC.HashSigning(Flags.Key)),
+				grpc.WithChainUnaryInterceptor(agentgrpc.HashSigning(Flags.Key)),
 			)
 			if err != nil {
 				log.Fatal().Err(err).Msg("failed to establish gRPC conn")
@@ -91,7 +91,7 @@ var cmd = &cobra.Command{
 			}()
 
 			client := proto.NewMetricsServiceClient(conn)
-			handler = agentGRPC.NewHandler(memstorage.New(), client)
+			handler = agentgrpc.NewHandler(memstorage.New(), client)
 		default:
 			log.Info().Msg("unallowed protocol")
 			return

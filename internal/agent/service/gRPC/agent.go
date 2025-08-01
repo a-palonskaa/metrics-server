@@ -1,4 +1,4 @@
-package agentGRPC
+package agentgrpc
 
 import (
 	"context"
