@@ -28,23 +28,27 @@ const (
 // AgentHadler defines a handler wrapping MemStorage usecase
 type AgentHandler struct {
 	msUsecase usecase.MemStorage
+	key       string
+	client    *resty.Client
 }
 
 // NewHandler creates a new AgentHandler instance using the provided metrics repository.
-func NewHandler(storage usecase.MetricsRepository) AgentHandler {
+func NewHandler(storage usecase.MetricsRepository, key string, client *resty.Client) AgentHandler {
 	return AgentHandler{
 		msUsecase: usecase.NewMemStorageUsecase(storage),
+		key:       key,
+		client:    client,
 	}
 }
 
 // SendMetrics sends all stored runtime metrics to the metrics server.
 // The request is retried if it fails, using a retriable error handler.
-func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, key string) error {
+func (h AgentHandler) SendMetrics(ctx context.Context) error {
 	body := h.msUsecase.ListAllMetrics(ctx)
 
 	err := errhandler.RetriableErrHadlerVoid(
 		func() error {
-			return h.SendRequest(client, body, key)
+			return h.SendRequest(body)
 		}, errhandler.CompareErrAgent)
 	if err != nil {
 		log.Error().Err(err).Msg("error sending metrics")
@@ -84,7 +88,7 @@ var gzipWriterPool = sync.Pool{
 // SendRequest prepares the metrics list, compresses it using gzip,
 // optionally signs it with SHA256 hash, and sends it to the metrics server
 // via a POST request to the /updates/ endpoint.
-func (h AgentHandler) SendRequest(client *resty.Client, body metrics.Metrics, key string) error {
+func (h AgentHandler) SendRequest(body metrics.Metrics) error {
 	if len(body) == 0 {
 		return nil
 	}
@@ -111,15 +115,15 @@ func (h AgentHandler) SendRequest(client *resty.Client, body metrics.Metrics, ke
 	}
 	gzipWriterPool.Put(gz)
 
-	req := client.R().
+	req := h.client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept-Encoding", "gzip").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("X-Real-IP", getIP()).
 		SetBody(buf.Bytes())
 
-	if key != "" {
-		dst, err := hash.Calculate([]byte(key), jsonData)
+	if h.key != "" {
+		dst, err := hash.Calculate([]byte(h.key), jsonData)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to calculate hash")
 		}

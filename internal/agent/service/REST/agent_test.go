@@ -30,9 +30,7 @@ func TestSendRequest(t *testing.T) {
 	gauge := float64(1.24)
 
 	type args struct {
-		client *resty.Client
-		body   metrics.Metrics
-		key    string
+		body metrics.Metrics
 	}
 
 	tests := []struct {
@@ -43,7 +41,6 @@ func TestSendRequest(t *testing.T) {
 		{
 			name: "success-case-gauge",
 			args: args{
-				client: client,
 				body: metrics.Metrics{
 					{
 						ID:    "Frees",
@@ -51,14 +48,12 @@ func TestSendRequest(t *testing.T) {
 						Value: gauge,
 					},
 				},
-				key: "",
 			},
 			wantErr: false,
 		},
 		{
 			name: "success-case-counter",
 			args: args{
-				client: client,
 				body: metrics.Metrics{
 					{
 						ID:    "Frees",
@@ -66,25 +61,22 @@ func TestSendRequest(t *testing.T) {
 						Delta: counter,
 					},
 				},
-				key: "",
 			},
 			wantErr: false,
 		},
 		{
 			name: "empty-body",
 			args: args{
-				client: client,
-				body:   metrics.Metrics{},
-				key:    "",
+				body: metrics.Metrics{},
 			},
 			wantErr: false,
 		},
 	}
 
-	handler := agent.NewHandler(memstorage.New())
+	handler := agent.NewHandler(memstorage.New(), "", client)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := handler.SendRequest(tt.args.client, tt.args.body, tt.args.key)
+			err := handler.SendRequest(tt.args.body)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -140,10 +132,10 @@ func TestSendRequestWithHash(t *testing.T) {
 		},
 	}
 
-	handler := agent.NewHandler(memstorage.New())
+	handler := agent.NewHandler(memstorage.New(), "key", client)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := handler.SendRequest(client, tt.body, "key")
+			err := handler.SendRequest(tt.body)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -168,9 +160,7 @@ func TestSendMetrics(t *testing.T) {
 	gauge := float64(1.24)
 
 	type args struct {
-		client *resty.Client
-		body   metrics.Metrics
-		key    string
+		body metrics.Metrics
 	}
 
 	tests := []struct {
@@ -181,7 +171,6 @@ func TestSendMetrics(t *testing.T) {
 		{
 			name: "success-case-gauge",
 			args: args{
-				client: client,
 				body: metrics.Metrics{
 					{
 						ID:    "Frees",
@@ -189,14 +178,12 @@ func TestSendMetrics(t *testing.T) {
 						Value: gauge,
 					},
 				},
-				key: "",
 			},
 			wantErr: false,
 		},
 		{
 			name: "success-case-counter",
 			args: args{
-				client: client,
 				body: metrics.Metrics{
 					{
 						ID:    "Frees",
@@ -204,25 +191,22 @@ func TestSendMetrics(t *testing.T) {
 						Delta: counter,
 					},
 				},
-				key: "",
 			},
 			wantErr: false,
 		},
 		{
 			name: "empty-body",
 			args: args{
-				client: client,
-				body:   metrics.Metrics{},
-				key:    "",
+				body: metrics.Metrics{},
 			},
 			wantErr: false,
 		},
 	}
 
-	handler := agent.NewHandler(memstorage.New())
+	handler := agent.NewHandler(memstorage.New(), "", client)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := handler.SendMetrics(context.TODO(), tt.args.client, tt.args.key)
+			err := handler.SendMetrics(context.TODO())
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -238,8 +222,8 @@ func BenchmarkSendRequest(b *testing.B) {
 	}))
 	defer server.Close()
 
-	handler := agent.NewHandler(memstorage.New())
 	client := resty.New().SetBaseURL(server.URL)
+	handler := agent.NewHandler(memstorage.New(), "aliffka", client)
 
 	const count = 50
 	metric := make([]metrics.Metric, count)
@@ -262,6 +246,6 @@ func BenchmarkSendRequest(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = handler.SendRequest(client, metric, "aliffka")
+		_ = handler.SendRequest(metric)
 	}
 }

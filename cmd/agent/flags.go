@@ -13,6 +13,9 @@ import (
 const (
 	minPort int = 1
 	maxPort int = 65535
+
+	restAPI string = "rest"
+	grpcAPI string = "grpc"
 )
 
 const (
@@ -22,6 +25,7 @@ const (
 	defaultKey            = ""
 	defaultRateLimit      = 1
 	defaultConfigFile     = "" //./internal/configs/agent_config.json
+	defaultProtocol       = "rest"
 )
 
 type Config struct {
@@ -31,6 +35,7 @@ type Config struct {
 	Key            string
 	RateLimit      int
 	ConfigFile     string
+	Protocol       string
 }
 
 type ParamsConfig struct {
@@ -40,6 +45,7 @@ type ParamsConfig struct {
 	Key            string `env:"KEY" json:"crypto_key"`
 	RateLimit      *int   `env:"RATE_LIMIT" json:"rate_limit,omitempty"`
 	ConfigFile     string `env:"CONFIG"`
+	Protocol       string `env:"PROTOCOL" json:"protocol"`
 }
 
 var Flags Config
@@ -103,6 +109,12 @@ func setFlags(cfg *ParamsConfig, fileCfg *ParamsConfig) {
 		Flags.RateLimit = *cfg.RateLimit
 	} else if fileCfg.RateLimit != nil && Flags.RateLimit == defaultRateLimit {
 		Flags.RateLimit = *fileCfg.RateLimit
+	}
+
+	if cfg.Protocol != "" {
+		Flags.Protocol = cfg.Protocol
+	} else if fileCfg.Protocol != "" && Flags.Protocol == defaultProtocol {
+		Flags.Protocol = fileCfg.Protocol
 	}
 }
 

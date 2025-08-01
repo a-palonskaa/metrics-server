@@ -15,8 +15,14 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	_ "google.golang.org/grpc/encoding/gzip"
 
-	agent_handler "github.com/a-palonskaa/metrics-server/internal/agent/service/REST"
+	proto "github.com/a-palonskaa/metrics-server/gen/proto"
+	service "github.com/a-palonskaa/metrics-server/internal/agent/service"
+	agentREST "github.com/a-palonskaa/metrics-server/internal/agent/service/REST"
+	agentGRPC "github.com/a-palonskaa/metrics-server/internal/agent/service/gRPC"
 	memstorage "github.com/a-palonskaa/metrics-server/internal/repository/metrics_storage"
 	workerpool "github.com/a-palonskaa/metrics-server/pkg/worker_pool"
 )
@@ -28,6 +34,7 @@ func init() {
 	cmd.PersistentFlags().StringVarP(&Flags.Key, "key", "k", defaultKey, "Key for hash")
 	cmd.PersistentFlags().IntVarP(&Flags.RateLimit, "limit", "l", defaultRateLimit, "Limit for requests amount")
 	cmd.PersistentFlags().StringVarP(&Flags.ConfigFile, "config", "c", defaultConfigFile, "Config file")
+	cmd.PersistentFlags().StringVarP(&Flags.Protocol, "protocol", "t", defaultProtocol, "Protocol(rest/grpc)")
 }
 
 var cmd = &cobra.Command{
@@ -63,14 +70,39 @@ var cmd = &cobra.Command{
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		var handler service.Handler
+		switch Flags.Protocol {
+		case restAPI:
+			client := resty.New().SetBaseURL("http://" + Flags.EndpointAddr)
+			handler = agentREST.NewHandler(memstorage.New(), Flags.Key, client)
+		case grpcAPI:
+			conn, err := grpc.NewClient(Flags.EndpointAddr,
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+				grpc.WithDefaultCallOptions(grpc.UseCompressor("gzip")),
+				grpc.WithChainUnaryInterceptor(agentGRPC.HashSigning(Flags.Key)),
+			)
+			if err != nil {
+				log.Fatal().Err(err).Msg("failed to establish gRPC conn")
+			}
+			defer func() {
+				if err := conn.Close(); err != nil {
+					log.Info().Err(err).Msg("failed to close connection")
+				}
+			}()
+
+			client := proto.NewMetricsServiceClient(conn)
+			handler = agentGRPC.NewHandler(memstorage.New(), client)
+		default:
+			log.Info().Msg("unallowed protocol")
+			return
+		}
+
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(sig)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-
-		client := resty.New().SetBaseURL("http://" + Flags.EndpointAddr)
-		handler := agent_handler.NewHandler(memstorage.New())
 
 		updateTicker := time.NewTicker(time.Duration(Flags.PollInterval) * time.Second)
 		defer updateTicker.Stop()
@@ -88,7 +120,7 @@ var cmd = &cobra.Command{
 					handler.UpdateSystemMetrics(ctx)
 				case <-sendTicker.C:
 					w.AddTask(func(c context.Context) error {
-						return handler.SendMetrics(c, client, Flags.Key)
+						return handler.SendMetrics(ctx)
 					})
 				case <-ctx.Done():
 					return

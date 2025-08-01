@@ -3,9 +3,7 @@
 package main
 
 import (
-	"compress/gzip"
 	"context"
-	"io"
 	"net"
 	"net/http"
 	"os"
@@ -21,7 +19,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/encoding"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/reflection" //DEBUG
 
 	proto "github.com/a-palonskaa/metrics-server/gen/proto"
@@ -153,24 +151,6 @@ func runRESTServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error
 		}
 	}
 	return nil
-}
-
-func init() {
-	encoding.RegisterCompressor(&gzipCompressor{})
-}
-
-type gzipCompressor struct{}
-
-func (c *gzipCompressor) Name() string {
-	return "gzip"
-}
-
-func (c *gzipCompressor) Compress(w io.Writer) (io.WriteCloser, error) {
-	return gzip.NewWriterLevel(w, gzip.BestSpeed)
-}
-
-func (c *gzipCompressor) Decompress(r io.Reader) (io.Reader, error) {
-	return gzip.NewReader(r)
 }
 
 func runGRPCServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error {
