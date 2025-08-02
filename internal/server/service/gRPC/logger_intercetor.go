@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// LoggerInterceptor is a gRPC server interceptor that logs metadata about each request.
 func LoggerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	reqSize := 0
 	if msg, ok := req.(proto.Message); ok {

@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// IPValidationInterceptor returns a gRPC interceptor that validates the client's IP address against a trusted subnet.
 func IPValidationInterceptor(trustedSubnet string) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if trustedSubnet != "" {

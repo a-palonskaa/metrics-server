@@ -1,3 +1,4 @@
+// Package service provides Handler interface for metrics-sender agent
 package service
 
 import (

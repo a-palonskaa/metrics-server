@@ -14,6 +14,7 @@ import (
 	hash "github.com/a-palonskaa/metrics-server/pkg/hash"
 )
 
+// HashInterceptor returns a gRPC unary interceptor that verifies the request hash and signs the response.
 func HashInterceptor(key string) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		if key == "" {

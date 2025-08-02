@@ -1,5 +1,5 @@
 // Package agent provides functionality for collecting and sending runtime and system
-// metrics from a agent to a server.
+// metrics from a agent to a server with REST API.
 package agent
 
 import (

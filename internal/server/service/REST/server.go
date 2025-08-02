@@ -1,5 +1,5 @@
-// Package server provides router for server, http-requests handlers,
-// middlewares for logging, encoding, hash signature checking
+// Package serverrest provides router for server, http-requests handlers,
+// middlewares for logging, encoding, hash signature checking, ip validation
 package serverrest
 
 import (
@@ -50,13 +50,22 @@ const htmlTemplate = `
 </body>
 </html>`
 
+// Params holds the parameters required to create a ServerHandler.
 type Params struct {
-	MsUsecase     usecase.MemStorage
-	PingUsecase   usecase.Ping
-	Key           string
+	// MsUsecase is the interface that handles in-memory storage business logic.
+	MsUsecase usecase.MemStorage
+
+	// PingUsecase is the interface that handles ping-related business  logic.
+	PingUsecase usecase.Ping
+
+	// Key is a secret key for hash signing.
+	Key string
+
+	// TrustedSubnet is a CIDR notation string representing a trusted subnet.
 	TrustedSubnet string
 }
 
+// ServerHandler handles HTTP requests.
 type ServerHandler struct {
 	msUsecase     usecase.MemStorage
 	pingUsecase   usecase.Ping
@@ -64,6 +73,7 @@ type ServerHandler struct {
 	trustedSubnet string
 }
 
+// New creates and returns a new ServerHandler instance using the provided parameters.
 func New(p Params) ServerHandler {
 	return ServerHandler{
 		msUsecase:     p.MsUsecase,
@@ -73,6 +83,7 @@ func New(p Params) ServerHandler {
 	}
 }
 
+// Router created a router for server
 func (h ServerHandler) Router(r *chi.Mux) *chi.Mux {
 	r.Use(WithCompression)
 	r.Use(WithLogging)
