@@ -1,0 +1,4 @@
+address: localhost:8080
+store_interval: 300
+database_dns: ""
+crypto_key: ""

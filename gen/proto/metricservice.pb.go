@@ -2,11 +2,15 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        v5.29.3
-// source: metrics.proto
+// source: metricservice.proto
 
-package proto
+// @version 1.0.0
+// @description Metrics service API for storing metrics
+
+package apiv1
 
 import (
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -22,18 +26,21 @@ const (
 )
 
 type Metric struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	MType         string                 `protobuf:"bytes,2,opt,name=m_type,json=mType,proto3" json:"m_type,omitempty"`
-	Delta         *int64                 `protobuf:"varint,3,opt,name=delta,proto3,oneof" json:"delta,omitempty"`
-	Value         *float64               `protobuf:"fixed64,4,opt,name=value,proto3,oneof" json:"value,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	MType string                 `protobuf:"bytes,2,opt,name=m_type,json=mType,proto3" json:"m_type,omitempty"`
+	// Types that are valid to be assigned to MetricValue:
+	//
+	//	*Metric_Delta
+	//	*Metric_Value
+	MetricValue   isMetric_MetricValue `protobuf_oneof:"metric_value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Metric) Reset() {
 	*x = Metric{}
-	mi := &file_metrics_proto_msgTypes[0]
+	mi := &file_metricservice_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +52,7 @@ func (x *Metric) String() string {
 func (*Metric) ProtoMessage() {}
 
 func (x *Metric) ProtoReflect() protoreflect.Message {
-	mi := &file_metrics_proto_msgTypes[0]
+	mi := &file_metricservice_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +65,7 @@ func (x *Metric) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Metric.ProtoReflect.Descriptor instead.
 func (*Metric) Descriptor() ([]byte, []int) {
-	return file_metrics_proto_rawDescGZIP(), []int{0}
+	return file_metricservice_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Metric) GetId() string {
@@ -75,19 +82,46 @@ func (x *Metric) GetMType() string {
 	return ""
 }
 
+func (x *Metric) GetMetricValue() isMetric_MetricValue {
+	if x != nil {
+		return x.MetricValue
+	}
+	return nil
+}
+
 func (x *Metric) GetDelta() int64 {
-	if x != nil && x.Delta != nil {
-		return *x.Delta
+	if x != nil {
+		if x, ok := x.MetricValue.(*Metric_Delta); ok {
+			return x.Delta
+		}
 	}
 	return 0
 }
 
 func (x *Metric) GetValue() float64 {
-	if x != nil && x.Value != nil {
-		return *x.Value
+	if x != nil {
+		if x, ok := x.MetricValue.(*Metric_Value); ok {
+			return x.Value
+		}
 	}
 	return 0
 }
+
+type isMetric_MetricValue interface {
+	isMetric_MetricValue()
+}
+
+type Metric_Delta struct {
+	Delta int64 `protobuf:"varint,3,opt,name=delta,proto3,oneof"`
+}
+
+type Metric_Value struct {
+	Value float64 `protobuf:"fixed64,4,opt,name=value,proto3,oneof"`
+}
+
+func (*Metric_Delta) isMetric_MetricValue() {}
+
+func (*Metric_Value) isMetric_MetricValue() {}
 
 type CheckConnectionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -97,7 +131,7 @@ type CheckConnectionRequest struct {
 
 func (x *CheckConnectionRequest) Reset() {
 	*x = CheckConnectionRequest{}
-	mi := &file_metrics_proto_msgTypes[1]
+	mi := &file_metricservice_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -109,7 +143,7 @@ func (x *CheckConnectionRequest) String() string {
 func (*CheckConnectionRequest) ProtoMessage() {}
 
 func (x *CheckConnectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metrics_proto_msgTypes[1]
+	mi := &file_metricservice_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -122,7 +156,7 @@ func (x *CheckConnectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckConnectionRequest.ProtoReflect.Descriptor instead.
 func (*CheckConnectionRequest) Descriptor() ([]byte, []int) {
-	return file_metrics_proto_rawDescGZIP(), []int{1}
+	return file_metricservice_proto_rawDescGZIP(), []int{1}
 }
 
 type CheckConnectionResponse struct {
@@ -134,7 +168,7 @@ type CheckConnectionResponse struct {
 
 func (x *CheckConnectionResponse) Reset() {
 	*x = CheckConnectionResponse{}
-	mi := &file_metrics_proto_msgTypes[2]
+	mi := &file_metricservice_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -146,7 +180,7 @@ func (x *CheckConnectionResponse) String() string {
 func (*CheckConnectionResponse) ProtoMessage() {}
 
 func (x *CheckConnectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metrics_proto_msgTypes[2]
+	mi := &file_metricservice_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -159,7 +193,7 @@ func (x *CheckConnectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckConnectionResponse.ProtoReflect.Descriptor instead.
 func (*CheckConnectionResponse) Descriptor() ([]byte, []int) {
-	return file_metrics_proto_rawDescGZIP(), []int{2}
+	return file_metricservice_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CheckConnectionResponse) GetStatus() int32 {
@@ -178,7 +212,7 @@ type UpdateMetricRequest struct {
 
 func (x *UpdateMetricRequest) Reset() {
 	*x = UpdateMetricRequest{}
-	mi := &file_metrics_proto_msgTypes[3]
+	mi := &file_metricservice_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -190,7 +224,7 @@ func (x *UpdateMetricRequest) String() string {
 func (*UpdateMetricRequest) ProtoMessage() {}
 
 func (x *UpdateMetricRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metrics_proto_msgTypes[3]
+	mi := &file_metricservice_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -203,7 +237,7 @@ func (x *UpdateMetricRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetricRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMetricRequest) Descriptor() ([]byte, []int) {
-	return file_metrics_proto_rawDescGZIP(), []int{3}
+	return file_metricservice_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UpdateMetricRequest) GetMetric() *Metric {
@@ -223,7 +257,7 @@ type UpdateMetricResponse struct {
 
 func (x *UpdateMetricResponse) Reset() {
 	*x = UpdateMetricResponse{}
-	mi := &file_metrics_proto_msgTypes[4]
+	mi := &file_metricservice_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -235,7 +269,7 @@ func (x *UpdateMetricResponse) String() string {
 func (*UpdateMetricResponse) ProtoMessage() {}
 
 func (x *UpdateMetricResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metrics_proto_msgTypes[4]
+	mi := &file_metricservice_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -248,7 +282,7 @@ func (x *UpdateMetricResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetricResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMetricResponse) Descriptor() ([]byte, []int) {
-	return file_metrics_proto_rawDescGZIP(), []int{4}
+	return file_metricservice_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *UpdateMetricResponse) GetMetric() *Metric {
@@ -274,7 +308,7 @@ type UpdateMetricsRequest struct {
 
 func (x *UpdateMetricsRequest) Reset() {
 	*x = UpdateMetricsRequest{}
-	mi := &file_metrics_proto_msgTypes[5]
+	mi := &file_metricservice_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -286,7 +320,7 @@ func (x *UpdateMetricsRequest) String() string {
 func (*UpdateMetricsRequest) ProtoMessage() {}
 
 func (x *UpdateMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metrics_proto_msgTypes[5]
+	mi := &file_metricservice_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -299,7 +333,7 @@ func (x *UpdateMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetricsRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_metrics_proto_rawDescGZIP(), []int{5}
+	return file_metricservice_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UpdateMetricsRequest) GetMetrics() []*Metric {
@@ -319,7 +353,7 @@ type UpdateMetricsResponse struct {
 
 func (x *UpdateMetricsResponse) Reset() {
 	*x = UpdateMetricsResponse{}
-	mi := &file_metrics_proto_msgTypes[6]
+	mi := &file_metricservice_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -331,7 +365,7 @@ func (x *UpdateMetricsResponse) String() string {
 func (*UpdateMetricsResponse) ProtoMessage() {}
 
 func (x *UpdateMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metrics_proto_msgTypes[6]
+	mi := &file_metricservice_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -344,7 +378,7 @@ func (x *UpdateMetricsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetricsResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_metrics_proto_rawDescGZIP(), []int{6}
+	return file_metricservice_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UpdateMetricsResponse) GetMetrics() []*Metric {
@@ -369,7 +403,7 @@ type ListAllMetricsRequest struct {
 
 func (x *ListAllMetricsRequest) Reset() {
 	*x = ListAllMetricsRequest{}
-	mi := &file_metrics_proto_msgTypes[7]
+	mi := &file_metricservice_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -381,7 +415,7 @@ func (x *ListAllMetricsRequest) String() string {
 func (*ListAllMetricsRequest) ProtoMessage() {}
 
 func (x *ListAllMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metrics_proto_msgTypes[7]
+	mi := &file_metricservice_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -394,7 +428,7 @@ func (x *ListAllMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAllMetricsRequest.ProtoReflect.Descriptor instead.
 func (*ListAllMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_metrics_proto_rawDescGZIP(), []int{7}
+	return file_metricservice_proto_rawDescGZIP(), []int{7}
 }
 
 type ListAllMetricsResponse struct {
@@ -406,7 +440,7 @@ type ListAllMetricsResponse struct {
 
 func (x *ListAllMetricsResponse) Reset() {
 	*x = ListAllMetricsResponse{}
-	mi := &file_metrics_proto_msgTypes[8]
+	mi := &file_metricservice_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -418,7 +452,7 @@ func (x *ListAllMetricsResponse) String() string {
 func (*ListAllMetricsResponse) ProtoMessage() {}
 
 func (x *ListAllMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metrics_proto_msgTypes[8]
+	mi := &file_metricservice_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -431,7 +465,7 @@ func (x *ListAllMetricsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAllMetricsResponse.ProtoReflect.Descriptor instead.
 func (*ListAllMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_metrics_proto_rawDescGZIP(), []int{8}
+	return file_metricservice_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListAllMetricsResponse) GetMetrics() []*Metric {
@@ -450,7 +484,7 @@ type GetMetricRequest struct {
 
 func (x *GetMetricRequest) Reset() {
 	*x = GetMetricRequest{}
-	mi := &file_metrics_proto_msgTypes[9]
+	mi := &file_metricservice_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -462,7 +496,7 @@ func (x *GetMetricRequest) String() string {
 func (*GetMetricRequest) ProtoMessage() {}
 
 func (x *GetMetricRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metrics_proto_msgTypes[9]
+	mi := &file_metricservice_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -475,7 +509,7 @@ func (x *GetMetricRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetricRequest.ProtoReflect.Descriptor instead.
 func (*GetMetricRequest) Descriptor() ([]byte, []int) {
-	return file_metrics_proto_rawDescGZIP(), []int{9}
+	return file_metricservice_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetMetricRequest) GetMetric() *Metric {
@@ -495,7 +529,7 @@ type GetMetricResponse struct {
 
 func (x *GetMetricResponse) Reset() {
 	*x = GetMetricResponse{}
-	mi := &file_metrics_proto_msgTypes[10]
+	mi := &file_metricservice_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -507,7 +541,7 @@ func (x *GetMetricResponse) String() string {
 func (*GetMetricResponse) ProtoMessage() {}
 
 func (x *GetMetricResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metrics_proto_msgTypes[10]
+	mi := &file_metricservice_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -520,7 +554,7 @@ func (x *GetMetricResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetricResponse.ProtoReflect.Descriptor instead.
 func (*GetMetricResponse) Descriptor() ([]byte, []int) {
-	return file_metrics_proto_rawDescGZIP(), []int{10}
+	return file_metricservice_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetMetricResponse) GetMetric() *Metric {
@@ -537,90 +571,89 @@ func (x *GetMetricResponse) GetStatus() int32 {
 	return 0
 }
 
-var File_metrics_proto protoreflect.FileDescriptor
+var File_metricservice_proto protoreflect.FileDescriptor
 
-const file_metrics_proto_rawDesc = "" +
+const file_metricservice_proto_rawDesc = "" +
 	"\n" +
-	"\rmetrics.proto\x12\tapi.proto\"y\n" +
+	"\x13metricservice.proto\x12\x06api.v1\x1a\x1cgoogle/api/annotations.proto\"o\n" +
 	"\x06Metric\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
-	"\x06m_type\x18\x02 \x01(\tR\x05mType\x12\x19\n" +
-	"\x05delta\x18\x03 \x01(\x03H\x00R\x05delta\x88\x01\x01\x12\x19\n" +
-	"\x05value\x18\x04 \x01(\x01H\x01R\x05value\x88\x01\x01B\b\n" +
-	"\x06_deltaB\b\n" +
-	"\x06_value\"\x18\n" +
+	"\x06m_type\x18\x02 \x01(\tR\x05mType\x12\x16\n" +
+	"\x05delta\x18\x03 \x01(\x03H\x00R\x05delta\x12\x16\n" +
+	"\x05value\x18\x04 \x01(\x01H\x00R\x05valueB\x0e\n" +
+	"\fmetric_value\"\x18\n" +
 	"\x16CheckConnectionRequest\"1\n" +
 	"\x17CheckConnectionResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\x05R\x06status\"@\n" +
-	"\x13UpdateMetricRequest\x12)\n" +
-	"\x06metric\x18\x01 \x01(\v2\x11.api.proto.MetricR\x06metric\"Y\n" +
-	"\x14UpdateMetricResponse\x12)\n" +
-	"\x06metric\x18\x01 \x01(\v2\x11.api.proto.MetricR\x06metric\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\x05R\x06status\"C\n" +
-	"\x14UpdateMetricsRequest\x12+\n" +
-	"\ametrics\x18\x01 \x03(\v2\x11.api.proto.MetricR\ametrics\"\\\n" +
-	"\x15UpdateMetricsResponse\x12+\n" +
-	"\ametrics\x18\x01 \x03(\v2\x11.api.proto.MetricR\ametrics\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\x05R\x06status\"=\n" +
+	"\x13UpdateMetricRequest\x12&\n" +
+	"\x06metric\x18\x01 \x01(\v2\x0e.api.v1.MetricR\x06metric\"V\n" +
+	"\x14UpdateMetricResponse\x12&\n" +
+	"\x06metric\x18\x01 \x01(\v2\x0e.api.v1.MetricR\x06metric\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\x05R\x06status\"@\n" +
+	"\x14UpdateMetricsRequest\x12(\n" +
+	"\ametrics\x18\x01 \x03(\v2\x0e.api.v1.MetricR\ametrics\"Y\n" +
+	"\x15UpdateMetricsResponse\x12(\n" +
+	"\ametrics\x18\x01 \x03(\v2\x0e.api.v1.MetricR\ametrics\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\x05R\x06status\"\x17\n" +
-	"\x15ListAllMetricsRequest\"E\n" +
-	"\x16ListAllMetricsResponse\x12+\n" +
-	"\ametrics\x18\x01 \x03(\v2\x11.api.proto.MetricR\ametrics\"=\n" +
-	"\x10GetMetricRequest\x12)\n" +
-	"\x06metric\x18\x01 \x01(\v2\x11.api.proto.MetricR\x06metric\"V\n" +
-	"\x11GetMetricResponse\x12)\n" +
-	"\x06metric\x18\x01 \x01(\v2\x11.api.proto.MetricR\x06metric\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\x05R\x06status2\xae\x03\n" +
-	"\x0eMetricsService\x12X\n" +
-	"\x0fCheckConnection\x12!.api.proto.CheckConnectionRequest\x1a\".api.proto.CheckConnectionResponse\x12O\n" +
-	"\fUpdateMetric\x12\x1e.api.proto.UpdateMetricRequest\x1a\x1f.api.proto.UpdateMetricResponse\x12R\n" +
-	"\rUpdateMetrics\x12\x1f.api.proto.UpdateMetricsRequest\x1a .api.proto.UpdateMetricsResponse\x12U\n" +
-	"\x0eListAllMetrics\x12 .api.proto.ListAllMetricsRequest\x1a!.api.proto.ListAllMetricsResponse\x12F\n" +
-	"\tGetMetric\x12\x1b.api.proto.GetMetricRequest\x1a\x1c.api.proto.GetMetricResponseB0Z.github.com/a-palonska/metrics-server/gen/protob\x06proto3"
+	"\x15ListAllMetricsRequest\"B\n" +
+	"\x16ListAllMetricsResponse\x12(\n" +
+	"\ametrics\x18\x01 \x03(\v2\x0e.api.v1.MetricR\ametrics\":\n" +
+	"\x10GetMetricRequest\x12&\n" +
+	"\x06metric\x18\x01 \x01(\v2\x0e.api.v1.MetricR\x06metric\"S\n" +
+	"\x11GetMetricResponse\x12&\n" +
+	"\x06metric\x18\x01 \x01(\v2\x0e.api.v1.MetricR\x06metric\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\x05R\x06status2\x8b\x04\n" +
+	"\x0eMetricsService\x12j\n" +
+	"\x0fCheckConnection\x12\x1e.api.v1.CheckConnectionRequest\x1a\x1f.api.v1.CheckConnectionResponse\"\x16\x82\xd3\xe4\x93\x02\x10:\x01*\"\vapi/v1/ping\x12c\n" +
+	"\fUpdateMetric\x12\x1b.api.v1.UpdateMetricRequest\x1a\x1c.api.v1.UpdateMetricResponse\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\rapi/v1/update\x12g\n" +
+	"\rUpdateMetrics\x12\x1c.api.v1.UpdateMetricsRequest\x1a\x1d.api.v1.UpdateMetricsResponse\"\x19\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0eapi/v1/updates\x12d\n" +
+	"\x0eListAllMetrics\x12\x1d.api.v1.ListAllMetricsRequest\x1a\x1e.api.v1.ListAllMetricsResponse\"\x13\x82\xd3\xe4\x93\x02\r\x12\vapi/v1/list\x12Y\n" +
+	"\tGetMetric\x12\x18.api.v1.GetMetricRequest\x1a\x19.api.v1.GetMetricResponse\"\x17\x82\xd3\xe4\x93\x02\x11:\x01*\"\fapi/v1/valueB6Z4github.com/a-palonska/metrics-server/gen/proto;apiv1b\x06proto3"
 
 var (
-	file_metrics_proto_rawDescOnce sync.Once
-	file_metrics_proto_rawDescData []byte
+	file_metricservice_proto_rawDescOnce sync.Once
+	file_metricservice_proto_rawDescData []byte
 )
 
-func file_metrics_proto_rawDescGZIP() []byte {
-	file_metrics_proto_rawDescOnce.Do(func() {
-		file_metrics_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_metrics_proto_rawDesc), len(file_metrics_proto_rawDesc)))
+func file_metricservice_proto_rawDescGZIP() []byte {
+	file_metricservice_proto_rawDescOnce.Do(func() {
+		file_metricservice_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_metricservice_proto_rawDesc), len(file_metricservice_proto_rawDesc)))
 	})
-	return file_metrics_proto_rawDescData
+	return file_metricservice_proto_rawDescData
 }
 
-var file_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
-var file_metrics_proto_goTypes = []any{
-	(*Metric)(nil),                  // 0: api.proto.Metric
-	(*CheckConnectionRequest)(nil),  // 1: api.proto.CheckConnectionRequest
-	(*CheckConnectionResponse)(nil), // 2: api.proto.CheckConnectionResponse
-	(*UpdateMetricRequest)(nil),     // 3: api.proto.UpdateMetricRequest
-	(*UpdateMetricResponse)(nil),    // 4: api.proto.UpdateMetricResponse
-	(*UpdateMetricsRequest)(nil),    // 5: api.proto.UpdateMetricsRequest
-	(*UpdateMetricsResponse)(nil),   // 6: api.proto.UpdateMetricsResponse
-	(*ListAllMetricsRequest)(nil),   // 7: api.proto.ListAllMetricsRequest
-	(*ListAllMetricsResponse)(nil),  // 8: api.proto.ListAllMetricsResponse
-	(*GetMetricRequest)(nil),        // 9: api.proto.GetMetricRequest
-	(*GetMetricResponse)(nil),       // 10: api.proto.GetMetricResponse
+var file_metricservice_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_metricservice_proto_goTypes = []any{
+	(*Metric)(nil),                  // 0: api.v1.Metric
+	(*CheckConnectionRequest)(nil),  // 1: api.v1.CheckConnectionRequest
+	(*CheckConnectionResponse)(nil), // 2: api.v1.CheckConnectionResponse
+	(*UpdateMetricRequest)(nil),     // 3: api.v1.UpdateMetricRequest
+	(*UpdateMetricResponse)(nil),    // 4: api.v1.UpdateMetricResponse
+	(*UpdateMetricsRequest)(nil),    // 5: api.v1.UpdateMetricsRequest
+	(*UpdateMetricsResponse)(nil),   // 6: api.v1.UpdateMetricsResponse
+	(*ListAllMetricsRequest)(nil),   // 7: api.v1.ListAllMetricsRequest
+	(*ListAllMetricsResponse)(nil),  // 8: api.v1.ListAllMetricsResponse
+	(*GetMetricRequest)(nil),        // 9: api.v1.GetMetricRequest
+	(*GetMetricResponse)(nil),       // 10: api.v1.GetMetricResponse
 }
-var file_metrics_proto_depIdxs = []int32{
-	0,  // 0: api.proto.UpdateMetricRequest.metric:type_name -> api.proto.Metric
-	0,  // 1: api.proto.UpdateMetricResponse.metric:type_name -> api.proto.Metric
-	0,  // 2: api.proto.UpdateMetricsRequest.metrics:type_name -> api.proto.Metric
-	0,  // 3: api.proto.UpdateMetricsResponse.metrics:type_name -> api.proto.Metric
-	0,  // 4: api.proto.ListAllMetricsResponse.metrics:type_name -> api.proto.Metric
-	0,  // 5: api.proto.GetMetricRequest.metric:type_name -> api.proto.Metric
-	0,  // 6: api.proto.GetMetricResponse.metric:type_name -> api.proto.Metric
-	1,  // 7: api.proto.MetricsService.CheckConnection:input_type -> api.proto.CheckConnectionRequest
-	3,  // 8: api.proto.MetricsService.UpdateMetric:input_type -> api.proto.UpdateMetricRequest
-	5,  // 9: api.proto.MetricsService.UpdateMetrics:input_type -> api.proto.UpdateMetricsRequest
-	7,  // 10: api.proto.MetricsService.ListAllMetrics:input_type -> api.proto.ListAllMetricsRequest
-	9,  // 11: api.proto.MetricsService.GetMetric:input_type -> api.proto.GetMetricRequest
-	2,  // 12: api.proto.MetricsService.CheckConnection:output_type -> api.proto.CheckConnectionResponse
-	4,  // 13: api.proto.MetricsService.UpdateMetric:output_type -> api.proto.UpdateMetricResponse
-	6,  // 14: api.proto.MetricsService.UpdateMetrics:output_type -> api.proto.UpdateMetricsResponse
-	8,  // 15: api.proto.MetricsService.ListAllMetrics:output_type -> api.proto.ListAllMetricsResponse
-	10, // 16: api.proto.MetricsService.GetMetric:output_type -> api.proto.GetMetricResponse
+var file_metricservice_proto_depIdxs = []int32{
+	0,  // 0: api.v1.UpdateMetricRequest.metric:type_name -> api.v1.Metric
+	0,  // 1: api.v1.UpdateMetricResponse.metric:type_name -> api.v1.Metric
+	0,  // 2: api.v1.UpdateMetricsRequest.metrics:type_name -> api.v1.Metric
+	0,  // 3: api.v1.UpdateMetricsResponse.metrics:type_name -> api.v1.Metric
+	0,  // 4: api.v1.ListAllMetricsResponse.metrics:type_name -> api.v1.Metric
+	0,  // 5: api.v1.GetMetricRequest.metric:type_name -> api.v1.Metric
+	0,  // 6: api.v1.GetMetricResponse.metric:type_name -> api.v1.Metric
+	1,  // 7: api.v1.MetricsService.CheckConnection:input_type -> api.v1.CheckConnectionRequest
+	3,  // 8: api.v1.MetricsService.UpdateMetric:input_type -> api.v1.UpdateMetricRequest
+	5,  // 9: api.v1.MetricsService.UpdateMetrics:input_type -> api.v1.UpdateMetricsRequest
+	7,  // 10: api.v1.MetricsService.ListAllMetrics:input_type -> api.v1.ListAllMetricsRequest
+	9,  // 11: api.v1.MetricsService.GetMetric:input_type -> api.v1.GetMetricRequest
+	2,  // 12: api.v1.MetricsService.CheckConnection:output_type -> api.v1.CheckConnectionResponse
+	4,  // 13: api.v1.MetricsService.UpdateMetric:output_type -> api.v1.UpdateMetricResponse
+	6,  // 14: api.v1.MetricsService.UpdateMetrics:output_type -> api.v1.UpdateMetricsResponse
+	8,  // 15: api.v1.MetricsService.ListAllMetrics:output_type -> api.v1.ListAllMetricsResponse
+	10, // 16: api.v1.MetricsService.GetMetric:output_type -> api.v1.GetMetricResponse
 	12, // [12:17] is the sub-list for method output_type
 	7,  // [7:12] is the sub-list for method input_type
 	7,  // [7:7] is the sub-list for extension type_name
@@ -628,27 +661,30 @@ var file_metrics_proto_depIdxs = []int32{
 	0,  // [0:7] is the sub-list for field type_name
 }
 
-func init() { file_metrics_proto_init() }
-func file_metrics_proto_init() {
-	if File_metrics_proto != nil {
+func init() { file_metricservice_proto_init() }
+func file_metricservice_proto_init() {
+	if File_metricservice_proto != nil {
 		return
 	}
-	file_metrics_proto_msgTypes[0].OneofWrappers = []any{}
+	file_metricservice_proto_msgTypes[0].OneofWrappers = []any{
+		(*Metric_Delta)(nil),
+		(*Metric_Value)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_metrics_proto_rawDesc), len(file_metrics_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_metricservice_proto_rawDesc), len(file_metricservice_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_metrics_proto_goTypes,
-		DependencyIndexes: file_metrics_proto_depIdxs,
-		MessageInfos:      file_metrics_proto_msgTypes,
+		GoTypes:           file_metricservice_proto_goTypes,
+		DependencyIndexes: file_metricservice_proto_depIdxs,
+		MessageInfos:      file_metricservice_proto_msgTypes,
 	}.Build()
-	File_metrics_proto = out.File
-	file_metrics_proto_goTypes = nil
-	file_metrics_proto_depIdxs = nil
+	File_metricservice_proto = out.File
+	file_metricservice_proto_goTypes = nil
+	file_metricservice_proto_depIdxs = nil
 }

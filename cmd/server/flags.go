@@ -1,13 +1,12 @@
 package main
 
 import (
-	"encoding/json"
-	"io"
+	"fmt"
 	"net"
-	"os"
 	"strconv"
 
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -25,121 +24,61 @@ const (
 	defaultRestore         = true
 	defaultDatabaseAddr    = ""
 	defaultKey             = ""
-	defaultConfigFile      = "" // ./internal/configs/server_config.json
+	defaultConfigFile      = "" // ./internal/configs/server_config.yaml
 	defaultTrustedSubnet   = ""
 	defaultProtocol        = "rest"
 )
 
 type Config struct {
-	EndpointAddr    string
-	StoreInterval   int
-	FileStoragePath string
-	Restore         bool
-	DatabaseAddr    string
-	Key             string
-	ConfigFile      string
-	TrustedSubnet   string
-	Protocol        string
-}
-
-type ParamsConfig struct {
-	EndpointAddr    string `env:"ADDRESS" json:"address"`
-	StoreInterval   *int   `env:"STORE_INTERVAL" json:"store_interval,omitempty"`
-	FileStoragePath string `env:"FILE_STORAGE_PATH" json:"store_file"`
-	Restore         *bool  `env:"RESTORE" json:"restore,omitempty"`
-	DatabaseAddr    string `env:"DATABASE_DSN" json:"database_dns"`
-	Key             string `env:"KEY" json:"crypto_key"`
+	EndpointAddr    string `env:"ADDRESS" yaml:"address"`
+	StoreInterval   int    `env:"STORE_INTERVAL" yaml:"store_interval,omitempty"`
+	FileStoragePath string `env:"FILE_STORAGE_PATH" yaml:"store_file"`
+	Restore         bool   `env:"RESTORE" yaml:"restore,omitempty"`
+	DatabaseAddr    string `env:"DATABASE_DSN" yaml:"database_dns"`
+	Key             string `env:"KEY" yaml:"crypto_key"`
 	ConfigFile      string `env:"CONFIG"`
-	TrustedSubnet   string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
-	Protocol        string `env:"PROTOCOL" json:"protocol"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET" yaml:"trusted_subnet"`
+	Protocol        string `env:"PROTOCOL" yaml:"protocol"`
 }
 
 var Flags Config
 
-func parseConfigFile(name string, cfg *ParamsConfig) error {
-	if name == "" {
-		return nil
+func initConfig(v *viper.Viper, configFile string) (*Config, error) {
+	v.AutomaticEnv()
+
+	v.SetDefault("endpointaddr", defaultEndpointAddr)
+	v.SetDefault("storeinterval", defaultStoreInterval)
+	v.SetDefault("filestoragepath", defaultFileStoragePath)
+	v.SetDefault("restore", defaultRestore)
+	v.SetDefault("databaseaddr", defaultDatabaseAddr)
+	v.SetDefault("key", defaultKey)
+	v.SetDefault("config", defaultConfigFile)
+	v.SetDefault("trustedsubnet", defaultTrustedSubnet)
+	v.SetDefault("protocol", defaultProtocol)
+
+	cfgFile := configFile
+	if cfgFile == "" && v.GetString("configure") != "" {
+		cfgFile = v.GetString("configure")
 	}
 
-	file, err := os.OpenFile(name, os.O_RDONLY, 0666)
-	if err != nil {
-		log.Info().Err(err).Msg("failed to open config file")
-		return err
+	if cfgFile != "" {
+		v.SetConfigFile(cfgFile)
+		if err := v.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
 	}
 
-	data, err := io.ReadAll(file)
-	if err != nil {
-		log.Info().Err(err).Msg("failed to read file")
-		return err
+	var cfg Config
+	if err := v.Unmarshal(&cfg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-
-	if err = json.Unmarshal(data, cfg); err != nil {
-		log.Info().Err(err).Msg("failed to unmarshal config data")
-		return err
-	}
-	return nil
-}
-
-func setConfigFile(cfg *ParamsConfig) {
-	if cfg.ConfigFile != "" {
-		Flags.ConfigFile = cfg.ConfigFile
-	}
-}
-
-func setFlags(cfg *ParamsConfig, fileCfg *ParamsConfig) {
-	if cfg.EndpointAddr != "" {
-		Flags.EndpointAddr = cfg.EndpointAddr
-	} else if fileCfg.EndpointAddr != "" && Flags.EndpointAddr == defaultEndpointAddr {
-		Flags.EndpointAddr = fileCfg.EndpointAddr
-	}
-
-	if cfg.FileStoragePath != "" {
-		Flags.FileStoragePath = cfg.FileStoragePath
-	} else if fileCfg.FileStoragePath != "" && Flags.FileStoragePath == defaultFileStoragePath {
-		Flags.FileStoragePath = fileCfg.FileStoragePath
-	}
-
-	if cfg.DatabaseAddr != "" {
-		Flags.DatabaseAddr = cfg.DatabaseAddr
-	} else if fileCfg.DatabaseAddr != "" && Flags.DatabaseAddr == defaultDatabaseAddr {
-		Flags.DatabaseAddr = fileCfg.DatabaseAddr
-	}
-
-	if cfg.Restore != nil {
-		Flags.Restore = *cfg.Restore
-	} else if fileCfg.Restore != nil && Flags.Restore {
-		Flags.Restore = *fileCfg.Restore
-	}
-
-	if cfg.StoreInterval != nil {
-		Flags.StoreInterval = *cfg.StoreInterval
-	} else if fileCfg.StoreInterval != nil && Flags.StoreInterval == defaultStoreInterval {
-		Flags.StoreInterval = *fileCfg.StoreInterval
-	}
-
-	if cfg.Key != "" {
-		Flags.Key = cfg.Key
-	} else if fileCfg.Key != "" && Flags.Key != defaultKey {
-		Flags.Key = fileCfg.Key
-	}
-
-	if cfg.TrustedSubnet != "" {
-		Flags.TrustedSubnet = cfg.TrustedSubnet
-	} else if fileCfg.TrustedSubnet != "" && Flags.TrustedSubnet == defaultDatabaseAddr {
-		Flags.TrustedSubnet = fileCfg.TrustedSubnet
-	}
-
-	if cfg.Protocol != "" {
-		Flags.Protocol = cfg.Protocol
-	} else if fileCfg.Protocol != "" && Flags.Protocol == defaultProtocol {
-		Flags.Protocol = fileCfg.Protocol
-	}
+	return &cfg, nil
 }
 
 func validateFlags() {
 	_, portStr, err := net.SplitHostPort(Flags.EndpointAddr)
 	if err != nil {
-		log.Fatal().Msgf("invalid address format: %s", err)
+		log.Fatal().Msgf("invalid address %s format: %s", Flags.EndpointAddr, err)
 	}
 
 	port, err := strconv.Atoi(portStr)

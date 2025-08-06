@@ -56,12 +56,12 @@ func New(path string, storage usecase.MetricsRepository, storeInterval int, rest
 func (fs *FileStorage) Update(ctx context.Context, metric metrics.Metrics) error {
 	if err := fs.storage.Update(ctx, metric); err != nil {
 		log.Error().Err(err).Msg("failed to add metric")
-		return err
+		return fmt.Errorf("failed update metric:%w", err)
 	}
 
 	if err := fs.Save(ctx); err != nil {
 		log.Error().Err(err).Msg("backup failed")
-		return err
+		return fmt.Errorf("failed to save storage:%w", err)
 	}
 	return nil
 }
@@ -70,7 +70,7 @@ func (fs *FileStorage) Get(ctx context.Context, mType, name string) (metrics.Met
 	metric, err := fs.storage.Get(ctx, mType, name)
 	if err != nil {
 		log.Error().Err(err).Msgf("failed to get metric type:%s, name:%s", mType, name)
-		return metrics.Metric{}, err
+		return metrics.Metric{}, fmt.Errorf("failed to get metric:%w", err)
 	}
 	return metric, nil
 }
@@ -87,14 +87,14 @@ func (fs *FileStorage) Load(_ context.Context) ([]byte, error) {
 	istreamInfo, err := fs.file.Stat()
 	if err != nil {
 		log.Error().Err(err).Msg("error getting istream info")
-		return make([]byte, 0), err
+		return make([]byte, 0), fmt.Errorf("failed to get istream info:%w", err)
 	}
 
 	data := make([]byte, istreamInfo.Size())
 	_, err = fs.file.Read(data)
 	if err != nil {
 		log.Error().Err(err).Msg("error reading from istream")
-		return make([]byte, 0), err
+		return make([]byte, 0), fmt.Errorf("failed to read from istream:%w", err)
 	}
 	return data, nil
 }
@@ -106,13 +106,13 @@ func (fs *FileStorage) LoadData(ctx context.Context) (metrics.Metrics, error) {
 	data, err := fs.Load(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("error loading data")
-		return metrics.Metrics{}, err
+		return metrics.Metrics{}, fmt.Errorf("failed to load data:%w", err)
 	}
 
 	var mt metrics.RawMetrics
 	if err = mt.UnmarshalJSON(data); err != nil {
 		log.Error().Err(err).Msg("error decoding body from json")
-		return metrics.Metrics{}, err
+		return metrics.Metrics{}, fmt.Errorf("failed to decode body:%w", err)
 	}
 	return mt.Serialize(), nil
 }
@@ -144,21 +144,21 @@ func (fs *FileStorage) Save(ctx context.Context) error {
 	data, err := metrics.Metrics(fs.storage.List(ctx)).MarshalJSON()
 	if err != nil {
 		log.Error().Err(err).Msg("error encoding to json")
-		return fmt.Errorf("encoding to json: %v", err)
+		return fmt.Errorf("encoding to json:%w", err)
 	}
 
 	if _, err := fs.file.Seek(0, 0); err != nil {
 		log.Error().Err(err).Msgf("moving file prt to begining %v", fs.file)
-		return fmt.Errorf("moving file prt to begining %v", err)
+		return fmt.Errorf("moving file prt to begining %w", err)
 	}
 	if err := fs.file.Truncate(0); err != nil {
 		log.Error().Err(err).Msgf("error truncating file %v", fs.file)
-		return fmt.Errorf("error truncating file: %v", err)
+		return fmt.Errorf("error truncating file:%w", err)
 	}
 
 	if _, err := fs.file.Write(data); err != nil {
 		log.Error().Err(err).Msg("error writing data to ostream")
-		return fmt.Errorf("error writing data: %v", err)
+		return fmt.Errorf("error writing data:%w", err)
 	}
 	return nil
 }

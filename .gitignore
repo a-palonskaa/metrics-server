@@ -31,6 +31,9 @@ go.work.sum
 .idea
 .vscode
 
+.DS_Store
 logs
 new/
 server-data.txt
+profiles
+testing

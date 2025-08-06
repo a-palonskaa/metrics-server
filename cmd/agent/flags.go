@@ -1,13 +1,12 @@
 package main
 
 import (
-	"encoding/json"
-	"io"
+	"fmt"
 	"net"
-	"os"
 	"strconv"
 
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -29,93 +28,45 @@ const (
 )
 
 type Config struct {
-	EndpointAddr   string
-	ReportInterval int
-	PollInterval   int
-	Key            string
-	RateLimit      int
-	ConfigFile     string
-	Protocol       string
-}
-
-type ParamsConfig struct {
 	EndpointAddr   string `env:"ADDRESS" json:"address"`
-	ReportInterval *int   `env:"STORE_INTERVAL" json:"store_interval,omitempty"`
-	PollInterval   *int   `env:"POLL_INTERVAL" json:"poll_interval,omitempty"`
+	ReportInterval int    `env:"STORE_INTERVAL" json:"store_interval,omitempty"`
+	PollInterval   int    `env:"POLL_INTERVAL" json:"poll_interval,omitempty"`
 	Key            string `env:"KEY" json:"crypto_key"`
-	RateLimit      *int   `env:"RATE_LIMIT" json:"rate_limit,omitempty"`
+	RateLimit      int    `env:"RATE_LIMIT" json:"rate_limit,omitempty"`
 	ConfigFile     string `env:"CONFIG"`
 	Protocol       string `env:"PROTOCOL" json:"protocol"`
 }
 
 var Flags Config
 
-func parseConfigFile(name string, cfg *ParamsConfig) error {
-	if name == "" {
-		return nil
+func initConfig(v *viper.Viper, configFile string) (*Config, error) {
+	v.AutomaticEnv()
+
+	v.SetDefault("endpointaddr", defaultEndpointAddr)
+	v.SetDefault("reportinterval", defaultReportInterval)
+	v.SetDefault("pollinterval", defaultPollInterval)
+	v.SetDefault("ratelimit", defaultRateLimit)
+	v.SetDefault("key", defaultKey)
+	v.SetDefault("config", defaultConfigFile)
+	v.SetDefault("protocol", defaultProtocol)
+
+	cfgFile := configFile
+	if cfgFile == "" && v.GetString("configure") != "" {
+		cfgFile = v.GetString("configure")
 	}
 
-	file, err := os.OpenFile(name, os.O_RDONLY, 0666)
-	if err != nil {
-		log.Info().Err(err).Msg("failed to open config file")
-		return err
+	if cfgFile != "" {
+		v.SetConfigFile(cfgFile)
+		if err := v.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
 	}
 
-	data, err := io.ReadAll(file)
-	if err != nil {
-		log.Info().Err(err).Msg("failed to read file")
-		return err
+	var cfg Config
+	if err := v.Unmarshal(&cfg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-
-	if err = json.Unmarshal(data, cfg); err != nil {
-		log.Info().Err(err).Msg("failed to unmarshal config data")
-		return err
-	}
-	return nil
-}
-
-func setConfigFile(cfg *ParamsConfig) {
-	if cfg.ConfigFile != "" {
-		Flags.ConfigFile = cfg.ConfigFile
-	}
-}
-
-func setFlags(cfg *ParamsConfig, fileCfg *ParamsConfig) {
-	if cfg.EndpointAddr != "" {
-		Flags.EndpointAddr = cfg.EndpointAddr
-	} else if fileCfg.EndpointAddr != "" && Flags.EndpointAddr == defaultEndpointAddr {
-		Flags.EndpointAddr = fileCfg.EndpointAddr
-	}
-
-	if cfg.PollInterval != nil {
-		Flags.PollInterval = *cfg.PollInterval
-	} else if fileCfg.PollInterval != nil && Flags.PollInterval == defaultPollInterval {
-		Flags.PollInterval = *fileCfg.PollInterval
-	}
-
-	if cfg.ReportInterval != nil {
-		Flags.ReportInterval = *cfg.ReportInterval
-	} else if fileCfg.ReportInterval != nil && Flags.ReportInterval == defaultReportInterval {
-		Flags.ReportInterval = *fileCfg.ReportInterval
-	}
-
-	if cfg.Key != "" {
-		Flags.Key = cfg.Key
-	} else if fileCfg.Key != "" && Flags.Key != defaultKey {
-		Flags.Key = fileCfg.Key
-	}
-
-	if cfg.RateLimit != nil {
-		Flags.RateLimit = *cfg.RateLimit
-	} else if fileCfg.RateLimit != nil && Flags.RateLimit == defaultRateLimit {
-		Flags.RateLimit = *fileCfg.RateLimit
-	}
-
-	if cfg.Protocol != "" {
-		Flags.Protocol = cfg.Protocol
-	} else if fileCfg.Protocol != "" && Flags.Protocol == defaultProtocol {
-		Flags.Protocol = fileCfg.Protocol
-	}
+	return &cfg, nil
 }
 
 func validateFlags() {

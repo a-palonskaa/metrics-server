@@ -2,9 +2,12 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
-// source: metrics.proto
+// source: metricservice.proto
 
-package proto
+// @version 1.0.0
+// @description Metrics service API for storing metrics
+
+package apiv1
 
 import (
 	context "context"
@@ -19,11 +22,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MetricsService_CheckConnection_FullMethodName = "/api.proto.MetricsService/CheckConnection"
-	MetricsService_UpdateMetric_FullMethodName    = "/api.proto.MetricsService/UpdateMetric"
-	MetricsService_UpdateMetrics_FullMethodName   = "/api.proto.MetricsService/UpdateMetrics"
-	MetricsService_ListAllMetrics_FullMethodName  = "/api.proto.MetricsService/ListAllMetrics"
-	MetricsService_GetMetric_FullMethodName       = "/api.proto.MetricsService/GetMetric"
+	MetricsService_CheckConnection_FullMethodName = "/api.v1.MetricsService/CheckConnection"
+	MetricsService_UpdateMetric_FullMethodName    = "/api.v1.MetricsService/UpdateMetric"
+	MetricsService_UpdateMetrics_FullMethodName   = "/api.v1.MetricsService/UpdateMetrics"
+	MetricsService_ListAllMetrics_FullMethodName  = "/api.v1.MetricsService/ListAllMetrics"
+	MetricsService_GetMetric_FullMethodName       = "/api.v1.MetricsService/GetMetric"
 )
 
 // MetricsServiceClient is the client API for MetricsService service.
@@ -244,7 +247,7 @@ func _MetricsService_GetMetric_Handler(srv interface{}, ctx context.Context, dec
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var MetricsService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "api.proto.MetricsService",
+	ServiceName: "api.v1.MetricsService",
 	HandlerType: (*MetricsServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -269,5 +272,5 @@ var MetricsService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "metrics.proto",
+	Metadata: "metricservice.proto",
 }

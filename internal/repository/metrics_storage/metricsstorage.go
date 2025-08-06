@@ -18,42 +18,33 @@ type MetricsStorage struct {
 
 // New creates and returns a new MetricsStorage instance.
 func New() *MetricsStorage {
-	return &MetricsStorage{
+	ms := MetricsStorage{
 		metrics: make(map[string]map[string]metrics.Metric),
 	}
+	ms.metrics["gauge"] = make(map[string]metrics.Metric, 20)   //ХУЙНЯ - cap -> const
+	ms.metrics["counter"] = make(map[string]metrics.Metric, 10) //ХУЙНЯ - cap -> const
+	return &ms
 }
 
 func (m *MetricsStorage) Update(ctx context.Context, mt metrics.Metrics) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	gauges, ok := m.metrics[metrics.GaugeName]
-	if !ok {
-		gauges = make(map[string]metrics.Metric, len(mt))
-		m.metrics[metrics.GaugeName] = gauges
-	}
-
-	counters, ok := m.metrics[metrics.CounterName]
-	if !ok {
-		counters = make(map[string]metrics.Metric, len(mt))
-		m.metrics[metrics.CounterName] = counters
-	}
+	gauges := m.metrics[metrics.GaugeName]
+	counters := m.metrics[metrics.CounterName]
 
 	for i := range mt {
-		if !metrics.IsTypeAllowed(mt[i].MType) {
-			log.Error().Str("type", mt[i].MType).Msg("unallowed metric type")
-			return metrics.ErrIncorrectMetricType
-		}
-
 		id := mt[i].ID
 		switch mt[i].MType {
 		case metrics.GaugeName:
 			gauges[id] = mt[i]
 		case metrics.CounterName:
-			if existing, ok := counters[id]; ok {
-				mt[i].Delta += existing.Delta
-			}
+			existing := counters[id]
+			mt[i].Delta += existing.Delta
 			counters[id] = mt[i]
+		default:
+			log.Error().Str("type", mt[i].MType).Msg("unallowed metric type")
+			return metrics.ErrIncorrectMetricType
 		}
 	}
 	return nil

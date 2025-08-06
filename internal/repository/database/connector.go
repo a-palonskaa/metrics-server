@@ -5,6 +5,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/rs/zerolog/log"
 
@@ -36,7 +37,7 @@ func NewConn(databaseAddr string) DBConnector {
 func (db DBConnector) Ping(ctx context.Context) error {
 	if err := db.db.PingContext(ctx); err != nil {
 		log.Error().Err(err).Msg("database ping failed")
-		return err
+		return fmt.Errorf("failed to verify a connection:%w", err)
 	}
 	return nil
 }

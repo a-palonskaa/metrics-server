@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/caarlos0/env/v6"
 	"github.com/fatih/color"
 	"github.com/go-resty/resty/v2"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	_ "google.golang.org/grpc/encoding/gzip"
@@ -52,21 +52,18 @@ var cmd = &cobra.Command{
 		color.New(color.FgCyan).Sprint("@aliffka") +
 		"\t\x1b]8;;\x1b\\",
 	PreRun: func(cmd *cobra.Command, args []string) {
-		var cfg ParamsConfig
-		err := env.Parse(&cfg)
+		v := viper.New()
+
+		if err := v.BindPFlags(cmd.Flags()); err != nil {
+			log.Error().Err(err).Msg("failed to bind flags")
+		}
+
+		cfg, err := initConfig(v, Flags.ConfigFile)
 		if err != nil {
-			log.Error().Msgf("environment variables parsing error")
-			return
-		}
-		setConfigFile(&cfg)
-
-		var fileCfg ParamsConfig
-		if err := parseConfigFile(Flags.ConfigFile, &fileCfg); err != nil {
-			log.Error().Msg("config file parsing error\n")
-			return
+			log.Error().Err(err).Msg("failed to load config")
 		}
 
-		setFlags(&cfg, &fileCfg)
+		Flags = *cfg
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {

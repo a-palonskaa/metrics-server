@@ -13,12 +13,12 @@ func ProtoToModel(pm *proto.Metric) Metric {
 
 	switch pm.MType {
 	case CounterName:
-		if pm.Delta != nil {
-			mt.Delta = *pm.Delta
+		if v, ok := pm.MetricValue.(*proto.Metric_Delta); ok {
+			mt.Delta = v.Delta
 		}
 	case GaugeName:
-		if pm.Value != nil {
-			mt.Value = *pm.Value
+		if v, ok := pm.MetricValue.(*proto.Metric_Value); ok {
+			mt.Value = v.Value
 		}
 	}
 	return mt
@@ -33,9 +33,9 @@ func ModelToProto(m Metric) *proto.Metric {
 
 	switch m.MType {
 	case CounterName:
-		pb.Delta = &m.Delta
+		pb.MetricValue = &proto.Metric_Delta{Delta: m.Delta}
 	case GaugeName:
-		pb.Value = &m.Value
+		pb.MetricValue = &proto.Metric_Value{Value: m.Value}
 	}
 	return pb
 }

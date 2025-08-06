@@ -4,23 +4,26 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
-	"github.com/caarlos0/env/v6"
 	"github.com/fatih/color"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/jackc/pgx/v5"
+	"github.com/rookie-ninja/rk-boot"
+	"github.com/rookie-ninja/rk-grpc/boot"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip"
-	"google.golang.org/grpc/reflection" //DEBUG
 
 	proto "github.com/a-palonskaa/metrics-server/gen/proto"
 	repo "github.com/a-palonskaa/metrics-server/internal/repository"
@@ -57,20 +60,18 @@ var cmd = &cobra.Command{
 		color.New(color.FgCyan).Sprint("@aliffka") +
 		"\t\x1b]8;;\x1b\\"),
 	PreRun: func(cmd *cobra.Command, args []string) {
-		var cfg ParamsConfig
-		if err := env.Parse(&cfg); err != nil {
-			log.Error().Msg("environment variables parsing error\n")
-			return
-		}
-		setConfigFile(&cfg)
+		v := viper.New()
 
-		var fileCfg ParamsConfig
-		if err := parseConfigFile(Flags.ConfigFile, &fileCfg); err != nil {
-			log.Error().Msg("config file parsing error\n")
-			return
+		if err := v.BindPFlags(cmd.Flags()); err != nil {
+			log.Error().Err(err).Msg("failed to bind flags")
 		}
 
-		setFlags(&cfg, &fileCfg)
+		cfg, err := initConfig(v, Flags.ConfigFile)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to load config")
+		}
+
+		Flags = *cfg
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -141,56 +142,53 @@ func runRESTServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error
 
 	select {
 	case err := <-serverErr:
-		return err
+		return fmt.Errorf("server error:%w", err)
 	case <-sig:
 		if err := server.Shutdown(ctx); err != nil {
 			if closeErr := server.Close(); closeErr != nil {
 				log.Error().Err(closeErr).Msg("shutdown error")
 			}
-			return err
+			return fmt.Errorf("faile dto gracefully shut down:%w", err)
 		}
 	}
 	return nil
 }
 
 func runGRPCServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error {
-	server := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(servergrpc.LoggerInterceptor),
-		grpc.ChainUnaryInterceptor(servergrpc.IPValidationInterceptor(Flags.TrustedSubnet)),
+	boot := rkboot.NewBoot(rkboot.WithBootConfigPath("configs/boot.yaml"))
+	boot.Bootstrap(context.Background())
+
+	grpcEntry := rkgrpc.GetGrpcEntry("metrics-server")
+	grpcEntry.Port = getPort(Flags.EndpointAddr)
+	grpcEntry.AddRegFuncGrpc(func(server *grpc.Server) {
+		proto.RegisterMetricsServiceServer(server, servergrpc.NewServerHandler(servergrpc.Params{
+			MsUsecase:     msUsecase,
+			PingUsecase:   pingUsecase,
+			Key:           Flags.Key,
+			TrustedSubnet: Flags.TrustedSubnet,
+		}))
+	})
+	grpcEntry.AddServerOptions(
+		grpc.ChainUnaryInterceptor(
+			servergrpc.LoggerInterceptor,
+			servergrpc.IPValidationInterceptor(Flags.TrustedSubnet),
+		),
 	)
 
-	handler := servergrpc.NewServerHandler(servergrpc.Params{
-		MsUsecase:     msUsecase,
-		PingUsecase:   pingUsecase,
-		Key:           Flags.Key,
-		TrustedSubnet: Flags.TrustedSubnet,
-	})
+	boot.WaitForShutdownSig(context.Background())
+	return nil
+}
 
-	proto.RegisterMetricsServiceServer(server, handler)
-	reflection.Register(server)
-
-	listen, err := net.Listen("tcp", Flags.EndpointAddr)
+func getPort(endpointAddr string) uint64 {
+	_, portStr, err := net.SplitHostPort(endpointAddr)
 	if err != nil {
-		return err
+		log.Info().Err(err).Msgf("failed to sptil host addr: %s", endpointAddr)
+		return 0
 	}
 
-	serverErr := make(chan error, 1)
-	defer close(serverErr)
-	go func() {
-		if err := server.Serve(listen); err != nil {
-			serverErr <- err
-		}
-	}()
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sig)
-
-	select {
-	case err := <-serverErr:
-		return err
-	case <-sig:
-		server.GracefulStop()
-		return nil
+	port, err := strconv.ParseInt(portStr, 0, 64)
+	if err != nil {
+		log.Info().Err(err).Msgf("failed to converte %s to type int", portStr)
 	}
+	return uint64(port)
 }

@@ -17,6 +17,6 @@ func main() {
 	logger.InitLogger("logs/info.log")
 
 	if err := cmd.Execute(); err != nil {
-		log.Fatal().Err(err)
+		log.Error().Err(err)
 	}
 }
