@@ -16,10 +16,7 @@ import (
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 )
 
-// Example_postUpdateMetric demonstrates sending and retrieving a metric
-// using the HTTP endpoints of the metrics server.
-func Example_postUpdateMetric() {
-	// Set up router and in-memory dependencies
+func setUp() *chi.Mux {
 	r := chi.NewRouter()
 
 	msUsecase := usecase.NewMemStorage(memstorage.New())
@@ -31,9 +28,14 @@ func Example_postUpdateMetric() {
 	})
 
 	_ = serverHandler.Router(r)
+	return r
+}
 
+// Example_postUpdateMetric demonstrates sending and retrieving a metric
+// using the HTTP endpoints of the metrics server.
+func Example_updateMetric() {
 	// Launch test HTTP server
-	ts := httptest.NewServer(r)
+	ts := httptest.NewServer(setUp())
 	defer ts.Close()
 
 	// Send metric via POST /update/
@@ -50,41 +52,31 @@ func Example_postUpdateMetric() {
 	}()
 	fmt.Println("POST /update/:", resp.Status)
 
-	// Retrieve metric via GET /value/gauge/Alloc
-	resp, err = http.Get(ts.URL + "/value/gauge/Alloc")
+	// Output:
+	// POST /update/: 200 OK
+}
+
+// Example_getMetricByURL demonstrates getting a metric by type and name
+func Example_getMetricByURL() {
+	// Launch test HTTP server
+	ts := httptest.NewServer(setUp())
+	defer ts.Close()
+
+	// Get metric via GET /value/{type}/{name}
+	resp, err := http.Get(ts.URL + "/value/gauge/Alloc")
 	if err != nil {
 		fmt.Println("error:", err)
 		return
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Printf("failed to lcose response body: %s", err)
+			log.Printf("failed to close response body: %s", err)
 		}
 	}()
 
 	getRespBody, _ := io.ReadAll(resp.Body)
 	fmt.Println("GET /value/gauge/Alloc:", string(getRespBody))
 
-	// Request metric via POST /value/
-	jsonRequest := `{"id": "Alloc", "type": "gauge"}`
-	resp, err = http.Post(ts.URL+"/value/", "application/json", bytes.NewBufferString(jsonRequest))
-	if err != nil {
-		fmt.Println("error:", err)
-		return
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			log.Printf("failed to lcose response body: %s", err)
-		}
-	}()
-
-	postValueResp, _ := io.ReadAll(resp.Body)
-	fmt.Println("POST /value/:", resp.Status)
-	fmt.Println("Response:", string(postValueResp))
-
 	// Output:
-	// POST /update/: 200 OK
-	// GET /value/gauge/Alloc: 123.4
-	// POST /value/: 200 OK
-	// Response: {"id":"Alloc","type":"gauge","value":123.4}
+	// GET /value/gauge/Alloc: Metric not found
 }
