@@ -35,5 +35,5 @@ go.work.sum
 logs
 new/
 server-data.txt
-profiles
-testing
+profiles/
+testing/
