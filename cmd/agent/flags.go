@@ -39,7 +39,7 @@ type Config struct {
 
 var Flags Config
 
-func initConfig(v *viper.Viper, configFile string) (*Config, error) {
+func initConfig(v *viper.Viper, configFile string) error {
 	v.AutomaticEnv()
 
 	v.SetDefault("endpointaddr", defaultEndpointAddr)
@@ -58,15 +58,11 @@ func initConfig(v *viper.Viper, configFile string) (*Config, error) {
 	if cfgFile != "" {
 		v.SetConfigFile(cfgFile)
 		if err := v.ReadInConfig(); err != nil {
-			return nil, fmt.Errorf("failed to read config file: %w", err)
+			return fmt.Errorf("failed to read config file: %w", err)
 		}
 	}
 
-	var cfg Config
-	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
-	}
-	return &cfg, nil
+	return nil
 }
 
 func validateFlags() {

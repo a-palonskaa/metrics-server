@@ -56,16 +56,25 @@ var cmd = &cobra.Command{
 	PreRun: func(cmd *cobra.Command, args []string) {
 		v := viper.New()
 
-		if err := v.BindPFlags(cmd.Flags()); err != nil {
-			log.Error().Err(err).Msg("failed to bind flags")
-		}
-
-		cfg, err := initConfig(v, Flags.ConfigFile)
-		if err != nil {
+		if err := initConfig(v, Flags.ConfigFile); err != nil {
 			log.Error().Err(err).Msg("failed to load config")
 		}
 
-		Flags = *cfg
+		_ = v.BindPFlag("address", cmd.PersistentFlags().Lookup("address"))
+		_ = v.BindPFlag("poll_interval", cmd.PersistentFlags().Lookup("pollinterval"))
+		_ = v.BindPFlag("report_interval", cmd.PersistentFlags().Lookup("reportinterval"))
+		_ = v.BindPFlag("key", cmd.PersistentFlags().Lookup("key"))
+		_ = v.BindPFlag("rate_limit", cmd.PersistentFlags().Lookup("ratelimit"))
+		_ = v.BindPFlag("protocol", cmd.PersistentFlags().Lookup("protocol"))
+
+		Flags = Config{
+			EndpointAddr:   v.GetString("address"),
+			PollInterval:   v.GetInt("poll_interval"),
+			ReportInterval: v.GetInt("report_interval"),
+			Key:            v.GetString("key"),
+			RateLimit:      v.GetInt("rate_limit"),
+			Protocol:       v.GetString("protocol"),
+		}
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
