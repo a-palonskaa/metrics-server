@@ -23,6 +23,7 @@ const (
 	defaultDatabaseAddr    = ""
 	defaultKey             = ""
 	defaultConfigFile      = "" // ./internal/configs/server_config.json
+	defaultTrustedSubnet   = ""
 )
 
 type Config struct {
@@ -33,6 +34,7 @@ type Config struct {
 	DatabaseAddr    string
 	Key             string
 	ConfigFile      string
+	TrustedSubnet   string
 }
 
 type ParamsConfig struct {
@@ -43,6 +45,7 @@ type ParamsConfig struct {
 	DatabaseAddr    string `env:"DATABASE_DSN" json:"database_dns"`
 	Key             string `env:"KEY" json:"crypto_key"`
 	ConfigFile      string `env:"CONFIG"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
 }
 
 var Flags Config
@@ -112,6 +115,12 @@ func setFlags(cfg *ParamsConfig, fileCfg *ParamsConfig) {
 		Flags.Key = cfg.Key
 	} else if fileCfg.Key != "" && Flags.Key != defaultKey {
 		Flags.Key = fileCfg.Key
+	}
+
+	if cfg.TrustedSubnet != "" {
+		Flags.TrustedSubnet = cfg.TrustedSubnet
+	} else if fileCfg.TrustedSubnet != "" && Flags.TrustedSubnet == defaultDatabaseAddr {
+		Flags.TrustedSubnet = fileCfg.TrustedSubnet
 	}
 }
 
