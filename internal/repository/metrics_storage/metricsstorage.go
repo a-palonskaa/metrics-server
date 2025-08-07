@@ -24,31 +24,34 @@ func (m *MetricsStorage) Update(ctx context.Context, mt metrics.Metrics) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for _, metric := range []metrics.Metric(mt) {
-		if !metrics.IsTypeAllowed(metric.MType) {
-			log.Error().Msgf("unallowed type %s", metric.MType)
+	gauges, ok := m.metrics[metrics.GaugeName]
+	if !ok {
+		gauges = make(map[string]metrics.Metric, len(mt))
+		m.metrics[metrics.GaugeName] = gauges
+	}
+
+	counters, ok := m.metrics[metrics.CounterName]
+	if !ok {
+		counters = make(map[string]metrics.Metric, len(mt))
+		m.metrics[metrics.CounterName] = counters
+	}
+
+	for i := range mt {
+		if !metrics.IsTypeAllowed(mt[i].MType) {
+			log.Error().Str("type", mt[i].MType).Msg("unallowed metric type")
 			return metrics.ErrIncorrectMetricType
 		}
 
-		if m.metrics[metric.MType] == nil {
-			m.metrics[metric.MType] = make(map[string]metrics.Metric)
-		}
-
-		mt, ok := m.metrics[metric.MType][metric.ID]
-		if !ok {
-			m.metrics[metric.MType][metric.ID] = metric
-			continue
-		}
-
-		switch metric.MType {
+		id := mt[i].ID
+		switch mt[i].MType {
 		case metrics.GaugeName:
-			mt.Value = metric.Value
+			gauges[id] = mt[i]
 		case metrics.CounterName:
-			mt.Delta += metric.Delta
-		default:
-			return metrics.ErrIncorrectMetricType
+			if existing, ok := counters[id]; ok {
+				mt[i].Delta += existing.Delta
+			}
+			counters[id] = mt[i]
 		}
-		m.metrics[metric.MType][metric.ID] = mt
 	}
 	return nil
 }

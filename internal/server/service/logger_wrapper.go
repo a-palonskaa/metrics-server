@@ -29,18 +29,13 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 
 func WithLogging(fn http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		responseData := &responseData{
-			status: 0,
-			size:   0,
-		}
-
+		responseData := responseData{}
 		responseWriter := loggingResponseWriter{
 			ResponseWriter: w,
-			responseData:   responseData,
+			responseData:   &responseData,
 		}
 
-		log.Info().Str("uri", req.RequestURI).Str("method", req.Method).Msg("request")
 		fn.ServeHTTP(&responseWriter, req)
-		log.Info().Int("status", responseData.status).Int("size", responseData.size).Msg("response")
+		log.Info().Str("uri", req.RequestURI).Str("method", req.Method).Int("resp status", responseData.status).Int("resp size", responseData.size).Msg("request")
 	})
 }

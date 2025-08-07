@@ -49,6 +49,7 @@ type Metric struct {
 	Value float64 `json:"value,omitempty"` // gauge
 }
 
+//easyjson:json
 type Metrics []Metric
 
 func NewMetric(id string, mType string, val string) (Metric, error) {
@@ -115,9 +116,16 @@ func (m RawMetric) Serialize() Metric {
 }
 
 func (m RawMetrics) Serialize() Metrics {
-	result := make([]Metric, 0, len(m))
-	for _, item := range []RawMetric(m) {
-		result = append(result, item.Serialize())
+	result := make([]Metric, len(m))
+	for i := range m {
+		result[i].ID = m[i].ID
+		result[i].MType = m[i].MType
+
+		if m[i].Delta != nil {
+			result[i].Delta = *m[i].Delta
+		} else if m[i].Value != nil {
+			result[i].Value = *m[i].Value
+		}
 	}
 	return Metrics(result)
 }
@@ -145,9 +153,27 @@ func (m Metric) Deserialize() RawMetric {
 }
 
 func (m Metrics) Deserialize() RawMetrics {
-	result := make([]RawMetric, 0, len([]Metric(m)))
-	for _, metric := range []Metric(m) {
-		result = append(result, metric.Deserialize())
+	result := make([]RawMetric, len(m))
+	for i := range m {
+		switch m[i].MType {
+		case GaugeName:
+			result[i] = RawMetric{
+				ID:    m[i].ID,
+				MType: m[i].MType,
+				Value: &m[i].Value,
+			}
+		case CounterName:
+			result[i] = RawMetric{
+				ID:    m[i].ID,
+				MType: m[i].MType,
+				Delta: &m[i].Delta,
+			}
+		default:
+			result[i] = RawMetric{
+				ID:    m[i].ID,
+				MType: m[i].MType,
+			}
+		}
 	}
 	return RawMetrics(result)
 }

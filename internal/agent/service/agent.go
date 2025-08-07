@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io"
+	"sync"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/rs/zerolog/log"
@@ -26,12 +28,12 @@ func NewHandler(storage usecase.MetricsRepository) AgentHandler {
 	}
 }
 
-func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, endpointAddr string, key string) error {
+func (h AgentHandler) SendMetrics(ctx context.Context, client *resty.Client, key string) error {
 	body := h.ListAllMetrics(ctx)
 
 	err := errhandler.RetriableErrHadlerVoid(
 		func() error {
-			return h.SendRequest(client, endpointAddr, body, key)
+			return h.SendRequest(client, body, key)
 		}, errhandler.CompareErrAgent)
 	if err != nil {
 		log.Error().Err(err).Msg("error sending metrics")
@@ -49,6 +51,7 @@ func (h AgentHandler) UpdateRuntimeMetrics(ctx context.Context) {
 	if err := h.msUsecase.UpdateMetrics(ctx); err != nil {
 		log.Error().Err(err).Msg("failed to update metrics")
 	}
+	log.Info().Msg("send metrics successfully")
 }
 
 func (h AgentHandler) UpdateSystemMetrics(ctx context.Context) {
@@ -57,7 +60,17 @@ func (h AgentHandler) UpdateSystemMetrics(ctx context.Context) {
 	}
 }
 
-func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body metrics.Metrics, key string) error {
+var gzipWriterPool = sync.Pool{
+	New: func() any {
+		gz, err := gzip.NewWriterLevel(io.Discard, gzip.BestSpeed)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to create gzip writer")
+		}
+		return gz
+	},
+}
+
+func (h AgentHandler) SendRequest(client *resty.Client, body metrics.Metrics, key string) error {
 	if len(body) == 0 {
 		return nil
 	}
@@ -69,17 +82,22 @@ func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body me
 	}
 
 	var buf bytes.Buffer
-	gz := gzip.NewWriter(&buf)
+	gz := gzipWriterPool.Get().(*gzip.Writer)
+	gz.Reset(&buf)
+
 	if _, err := gz.Write(jsonData); err != nil {
 		log.Error().Err(err).Msg("failed to write compressed data")
+		gzipWriterPool.Put(gz)
 		return fmt.Errorf("failed to write compressed data: %v", err)
 	}
 	if err := gz.Close(); err != nil {
-		log.Error().Err(err).Msg("failed to close gzip Writer")
-		return fmt.Errorf("failed to close gzip Writer: %v", err)
+		log.Error().Err(err).Msg("failed to close gzip writer")
+		gzipWriterPool.Put(gz)
+		return fmt.Errorf("failed to close gzip writer: %v", err)
 	}
+	gzipWriterPool.Put(gz)
 
-	req := client.SetBaseURL("http://"+endpoint).R().
+	req := client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Accept-Encoding", "gzip").
 		SetHeader("Content-Encoding", "gzip").
@@ -95,7 +113,7 @@ func (h AgentHandler) SendRequest(client *resty.Client, endpoint string, body me
 
 	_, err = req.Post("/updates/")
 	if err != nil {
-		log.Error().Err(err).Msgf("failed to send request w metrics update to server %s", endpoint)
+		log.Error().Err(err).Msgf("failed to send request w metrics update to server")
 		return fmt.Errorf("failed to send request w metrics update to server: %v", err)
 	}
 	return nil

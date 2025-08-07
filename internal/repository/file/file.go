@@ -3,6 +3,7 @@ package file
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -137,21 +138,20 @@ func (fs *FileStorage) Save(ctx context.Context) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	mt := metrics.Metrics(fs.storage.List(ctx)).Deserialize()
-	data, err := mt.MarshalJSON()
+	data, err := metrics.Metrics(fs.storage.List(ctx)).MarshalJSON()
 	if err != nil {
 		log.Error().Err(err).Msg("error encoding to json")
-		return err
+		return fmt.Errorf("encoding to json: %v", err)
 	}
 
 	if _, err := fs.file.Seek(0, 0); err != nil {
 		log.Error().Err(err).Msgf("moving file prt to begining %v", fs.file)
-		return err
+		return fmt.Errorf("moving file prt to begining %v", err)
 	}
 
-	if _, err := fs.file.Write(append(data, '\n')); err != nil {
+	if _, err := fs.file.Write(data); err != nil {
 		log.Error().Err(err).Msg("error writing data to ostream")
-		return err
+		return fmt.Errorf("error writing data: %v", err)
 	}
 	return nil
 }
