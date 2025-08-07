@@ -23,7 +23,7 @@ const (
 	defaultPollInterval   = 2
 	defaultKey            = ""
 	defaultRateLimit      = 1
-	defaultConfigFile     = "" //./internal/configs/agent_config.json
+	defaultConfigFile     = "" //./internal/configs/agent_config.yaml
 	defaultProtocol       = "rest"
 )
 

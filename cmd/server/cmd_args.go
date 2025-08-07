@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -41,8 +42,12 @@ func init() {
 	cmd.PersistentFlags().StringVarP(&Flags.DatabaseAddr, "d", "d", defaultDatabaseAddr, "Database filepath")
 	cmd.PersistentFlags().StringVarP(&Flags.Key, "k", "k", defaultKey, "Key for hash")
 	cmd.PersistentFlags().StringVarP(&Flags.ConfigFile, "config", "c", defaultConfigFile, "Config file")
+<<<<<<< HEAD
 	cmd.PersistentFlags().StringVarP(&Flags.TrustedSubnet, "t", "t", defaultTrustedSubnet, "Trusted Subnet")
 	cmd.PersistentFlags().StringVarP(&Flags.Protocol, "protocol", "p", defaultProtocol, "Protocol(rest/grpc)")
+=======
+	cmd.PersistentFlags().StringVarP(&Flags.TrustedSubnet, "t", "t", defaultTrustedSubnet, "Trusted Sunnet")
+>>>>>>> origin/main
 }
 
 var cmd = &cobra.Command{

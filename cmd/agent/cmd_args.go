@@ -5,6 +5,8 @@ package main
 
 import (
 	"context"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -97,6 +99,12 @@ var cmd = &cobra.Command{
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 		defer signal.Stop(sig)
+
+		go func() {
+			if err := http.ListenAndServe("localhost:6060", nil); err != nil {
+				log.Error().Err(err).Msg("pprof server error")
+			}
+		}()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
