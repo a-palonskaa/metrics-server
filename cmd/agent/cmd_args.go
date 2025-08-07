@@ -60,12 +60,12 @@ var cmd = &cobra.Command{
 			log.Error().Err(err).Msg("failed to load config")
 		}
 
-		v.BindPFlag("address", cmd.PersistentFlags().Lookup("address"))
-		v.BindPFlag("poll_interval", cmd.PersistentFlags().Lookup("pollinterval"))
-		v.BindPFlag("report_interval", cmd.PersistentFlags().Lookup("reportinterval"))
-		v.BindPFlag("key", cmd.PersistentFlags().Lookup("key"))
-		v.BindPFlag("rate_limit", cmd.PersistentFlags().Lookup("ratelimit"))
-		v.BindPFlag("protocol", cmd.PersistentFlags().Lookup("protocol"))
+		_ = v.BindPFlag("address", cmd.PersistentFlags().Lookup("address"))
+		_ = v.BindPFlag("poll_interval", cmd.PersistentFlags().Lookup("pollinterval"))
+		_ = v.BindPFlag("report_interval", cmd.PersistentFlags().Lookup("reportinterval"))
+		_ = v.BindPFlag("key", cmd.PersistentFlags().Lookup("key"))
+		_ = v.BindPFlag("rate_limit", cmd.PersistentFlags().Lookup("ratelimit"))
+		_ = v.BindPFlag("protocol", cmd.PersistentFlags().Lookup("protocol"))
 
 		Flags = Config{
 			EndpointAddr:   v.GetString("address"),

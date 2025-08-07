@@ -67,14 +67,14 @@ var cmd = &cobra.Command{
 			log.Error().Err(err).Msg("failed to load config")
 		}
 
-		v.BindPFlag("address", cmd.PersistentFlags().Lookup("a"))
-		v.BindPFlag("storeinterval", cmd.PersistentFlags().Lookup("i"))
-		v.BindPFlag("restore", cmd.PersistentFlags().Lookup("r"))
-		v.BindPFlag("store_file", cmd.PersistentFlags().Lookup("f"))
-		v.BindPFlag("database_dns", cmd.PersistentFlags().Lookup("d"))
-		v.BindPFlag("crypto_key", cmd.PersistentFlags().Lookup("k"))
-		v.BindPFlag("trusted_subnet", cmd.PersistentFlags().Lookup("t"))
-		v.BindPFlag("protocol", cmd.PersistentFlags().Lookup("protocol"))
+		_ = v.BindPFlag("address", cmd.PersistentFlags().Lookup("a"))
+		_ = v.BindPFlag("storeinterval", cmd.PersistentFlags().Lookup("i"))
+		_ = v.BindPFlag("restore", cmd.PersistentFlags().Lookup("r"))
+		_ = v.BindPFlag("store_file", cmd.PersistentFlags().Lookup("f"))
+		_ = v.BindPFlag("database_dns", cmd.PersistentFlags().Lookup("d"))
+		_ = v.BindPFlag("crypto_key", cmd.PersistentFlags().Lookup("k"))
+		_ = v.BindPFlag("trusted_subnet", cmd.PersistentFlags().Lookup("t"))
+		_ = v.BindPFlag("protocol", cmd.PersistentFlags().Lookup("protocol"))
 
 		Flags = Config{
 			EndpointAddr:    v.GetString("address"),
