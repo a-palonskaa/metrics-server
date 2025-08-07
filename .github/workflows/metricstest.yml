@@ -200,8 +200,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration4$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=./cmd/agent/agent \
+            -binary-path=./cmd/server/server \
             -server-port=$SERVER_PORT \
             -source-path=.
 

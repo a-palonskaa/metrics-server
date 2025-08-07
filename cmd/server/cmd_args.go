@@ -63,16 +63,29 @@ var cmd = &cobra.Command{
 	PreRun: func(cmd *cobra.Command, args []string) {
 		v := viper.New()
 
-		if err := v.BindPFlags(cmd.Flags()); err != nil {
-			log.Error().Err(err).Msg("failed to bind flags")
-		}
-
-		cfg, err := initConfig(v, Flags.ConfigFile)
-		if err != nil {
+		if err := initConfig(v, Flags.ConfigFile); err != nil {
 			log.Error().Err(err).Msg("failed to load config")
 		}
 
-		Flags = *cfg
+		v.BindPFlag("address", cmd.PersistentFlags().Lookup("a"))
+		v.BindPFlag("storeinterval", cmd.PersistentFlags().Lookup("i"))
+		v.BindPFlag("restore", cmd.PersistentFlags().Lookup("r"))
+		v.BindPFlag("store_file", cmd.PersistentFlags().Lookup("f"))
+		v.BindPFlag("database_dns", cmd.PersistentFlags().Lookup("d"))
+		v.BindPFlag("crypto_key", cmd.PersistentFlags().Lookup("k"))
+		v.BindPFlag("trusted_subnet", cmd.PersistentFlags().Lookup("t"))
+		v.BindPFlag("protocol", cmd.PersistentFlags().Lookup("protocol"))
+
+		Flags = Config{
+			EndpointAddr:    v.GetString("address"),
+			StoreInterval:   v.GetInt("store_interval"),
+			FileStoragePath: v.GetString("store_file"),
+			Restore:         v.GetBool("restore"),
+			DatabaseAddr:    v.GetString("database_dns"),
+			Key:             v.GetString("crypto_key"),
+			TrustedSubnet:   v.GetString("trusted_subnet"),
+			Protocol:        v.GetString("protocol"),
+		}
 		validateFlags()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
