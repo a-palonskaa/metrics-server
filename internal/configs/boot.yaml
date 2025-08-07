@@ -1,6 +1,0 @@
-grpc:
-  - name: metrics-server
-    port: 8080
-    enabled: true
-    commonService:
-      enabled: true

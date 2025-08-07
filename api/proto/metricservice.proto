@@ -61,30 +61,30 @@ message GetMetricResponse {
 service MetricsService {
   rpc CheckConnection(CheckConnectionRequest) returns (CheckConnectionResponse) {
     option (google.api.http) = {
-      post: "api/v1/ping"
+      post: "/api/v1/ping"
       body: "*"
     };
   }
   rpc UpdateMetric(UpdateMetricRequest) returns (UpdateMetricResponse) {
     option (google.api.http) = {
-      post: "api/v1/update"
+      post: "/api/v1/update"
       body: "*"
     };
   }
   rpc UpdateMetrics(UpdateMetricsRequest) returns (UpdateMetricsResponse) {
     option (google.api.http) = {
-      post: "api/v1/updates"
+      post: "/api/v1/updates"
       body: "*"
     };
   }
   rpc ListAllMetrics(ListAllMetricsRequest) returns (ListAllMetricsResponse) {
     option (google.api.http) = {
-      get: "api/v1/list"
+      get: "/api/v1/list"
     };
   }
   rpc GetMetric(GetMetricRequest) returns (GetMetricResponse) {
     option (google.api.http) = {
-      post: "api/v1/value"
+      post: "/api/v1/value"
       body: "*"
     };
   }

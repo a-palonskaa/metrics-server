@@ -155,7 +155,7 @@ func runRESTServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error
 }
 
 func runGRPCServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error {
-	boot := rkboot.NewBoot(rkboot.WithBootConfigPath("configs/boot.yaml"))
+	boot := rkboot.NewBoot(rkboot.WithBootConfigPath(""))
 	boot.Bootstrap(context.Background())
 
 	grpcEntry := rkgrpc.GetGrpcEntry("metrics-server")

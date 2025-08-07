@@ -94,7 +94,7 @@ func (fs *FileStorage) Load(_ context.Context) ([]byte, error) {
 	_, err = fs.file.Read(data)
 	if err != nil {
 		log.Error().Err(err).Msg("error reading from istream")
-		return make([]byte, 0), fmt.Errorf("failed to read from istream:%w", err)
+		return nil, fmt.Errorf("failed to read from istream:%w", err)
 	}
 	return data, nil
 }
