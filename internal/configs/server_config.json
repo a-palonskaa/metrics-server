@@ -1,0 +1,6 @@
+{
+    "address": "localhost:8080",
+    "store_interval": "300",
+    "database_dsn": "",
+    "crypto_key": ""
+}
