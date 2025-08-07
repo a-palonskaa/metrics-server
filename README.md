@@ -1,32 +1,96 @@
-# project-template
+# Agent and Server for collecting runtime & system metrics via REST/gRPC
 
-Шаблон репозитория для проекта по курсу «Продвинутый Go-разработчик для сетевых инженеров».
+## Agent
 
-## Начало работы
+![agent](./images/agent.png)
 
-1. Склонируйте репозиторий в любую подходящую директорию на вашем компьютере.
-2. В корне репозитория выполните команду `go mod init <name>` (где `<name>` — адрес вашего репозитория на GitHub без префикса `https://`) для создания модуля.
+The Agent collects runtime/system metrics using Go’s `runtime` and system stats, then sends them to a server using either **REST** or **gRPC** at configurable intervals.
 
-## Обновление шаблона
+### Features
+- runtime + system metrics
+- REST/gRPC support
+- worker pool for limited concurrent reporting
+- HMAC Hash signing
+- gzip compression
+- configurable polling/report intervals
+- swagger docs
 
-Чтобы иметь возможность получать обновления автотестов и других частей шаблона, выполните команду:
+### Usage
 
+```bash
+go run ./cmd/agent --config=configs/agent.yaml
 ```
-git remote add -m main template https://github.com/mipt-golang-course/project-template.git
+
+```bash
+go run ./cmd/agent -a="localhost:8080" -p=2 -r=10 \
+-k="aliffka" -p="rest" -l=5
 ```
 
-Для обновления кода автотестов выполните команду:
+### Flags
+| Flag                    | Description                       |
+|-------------------------|-----------------------------------|
+| `--address`, `-a`       | Server endpoint address           |
+| `--pollinterval`, `-p`  | Interval to collect metrics (sec) |
+| `--reportinterval`, `-r`| Interval to send metrics (sec)    |
+| `--key`, `-k`           | Secret key for HMAC signing       |
+| `--limit`, `-l`         | Max concurrent requests           |
+| `--protocol`, `-t`      | `rest` or `grpc`                  |
+| `--config`, `-c`        | Path to config file               |
 
+
+## Server
+
+![server](./images/server.png)
+
+HTTP/gRPC server for collecting metrics(gauge and counter). It supports in-memory storage, file persistence, and PostgreSQL for durability. The server is built with modular architecture(repository-usecase-service) and supports configuration via flags or YAML file.
+
+### Features
+- REST/gRPC support
+- reposiroty: memory, file, PostgreSQL
+- HMAC signature validation
+- IP subnet validation
+- configurable periodic backup
+- swagger docs
+
+### Usage
+
+```bash
+go run ./cmd/server/server --config=configs/server.yaml
 ```
-git fetch template && git checkout template/main .github
+
+```bash
+go run ./cmd/server/server -a="localhost:8080" -i=300 -r=true \
+-f=/tmp/metrics.json -d=postgres://user:pass@localhost:5432/metrics \
+-k="aliffka" -p="grpc"
 ```
 
-Затем добавьте полученные изменения в свой репозиторий.
+### Flags
 
-## Запуск автотестов
+| Flag               | Description                                        |
+|--------------------|----------------------------------------------------|
+| `--a`              | HTTP/gRPC server address                           |
+| `--i`              | Interval for storing data (in seconds)             |
+| `--r`              | Restore data from file on startup (`true/false`)   |
+| `--f`              | File path for metrics persistence                  |
+| `--d`              | PostgreSQL connection string (DSN)                 |
+| `--key`, `-k`      | Secret key for verifying HMAC signatures           |
+| `--t`              | Trusted subnet for gRPC client IP validation       |
+| `--protocol`, `-p` | Protocol to use: `rest` or `grpc`                  |
+| `--config`, `-c`   | Path to configuration file                         |
 
-Для успешного запуска автотестов называйте ветки `iter<number>`, где `<number>` — порядковый номер инкремента. Например, в ветке с названием `iter4` запустятся автотесты для инкрементов с первого по четвёртый.
+## Build
 
-При мёрже ветки с инкрементом в основную ветку `main` будут запускаться все автотесты.
+This project uses a `Makefile` to manage builds, dependencies, testing, and more.
 
-Подробнее про локальный и автоматический запуск читайте в [README автотестов](https://github.com/mipt-golang-course/go-autotests).
+| Target             | Description                                                     |
+|--------------------|-----------------------------------------------------------------|
+|`make all`          | Run everything: deps, server build, agent build, tests, and lint|
+|`make server`       | Build the server binary                                         |
+|`make agent`        | Build the agent binary                                          |
+|`make deps`         | Download Go module dependencies and vendor them                 |
+|`make test`         | Run all unit tests with coverage report                         |
+|`make lint`         | Run `golangci-lint` to check for code issues                    |
+|`make clean`        | Remove compiled binaries and coverage files                     |
+|`make swagger`      | Generate Swagger docs using `swag`                              |
+|`make proto`        | Compile `.proto` definitions into Go files (`protoc` required)  |
+|`make test_results` | View HTML coverage report and delete temp files after           |

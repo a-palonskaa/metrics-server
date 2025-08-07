@@ -4,6 +4,7 @@ package errhandlers
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgconn"
@@ -51,7 +52,10 @@ func RetriableErrHadlerVoid(f func() error, compare func(error) bool) error {
 	_, err := RetriableErrHadler(func() (struct{}, error) {
 		return struct{}{}, f()
 	}, compare)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to handle err after retrying:%v", err)
+	}
+	return nil
 }
 
 func CompareErrAgent(err error) bool {

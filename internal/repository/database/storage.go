@@ -4,6 +4,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sync"
 
 	_ "github.com/golang-migrate/migrate/v4"
@@ -57,7 +58,7 @@ func CreateTables(db *sql.DB) error {
 			Delta BIGINT,
 			Value DOUBLE PRECISION
 		);`)
-		return err
+		return fmt.Errorf("failed to create table:%w", err)
 	}, errhandlers.CompareErrSQL)
 }
 
@@ -68,7 +69,7 @@ func (db *DBStorage) Update(ctx context.Context, metric metrics.Metrics) error {
 	tx, err := db.DB.Begin()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to load transaction")
-		return err
+		return fmt.Errorf("failed to load transaction:%w", err)
 	}
 
 	for _, mt := range []metrics.Metric(metric) {
@@ -78,13 +79,13 @@ func (db *DBStorage) Update(ctx context.Context, metric metrics.Metrics) error {
 			if err = tx.Rollback(); err != nil {
 				log.Error().Err(err).Msg("failed to rollback")
 			}
-			return err
+			return fmt.Errorf("failed to add metric:%w", err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
 		log.Error().Err(err).Msg("failed to commit transaction")
-		return err
+		return fmt.Errorf("failed to commit transaction:%w", err)
 	}
 	return nil
 }
@@ -179,7 +180,9 @@ func addMetric(tx *sql.Tx, m metrics.Metric) error {
 			ON CONFLICT (ID)
 			DO UPDATE SET Value = EXCLUDED.Value, MType = EXCLUDED.MType
 		`, m.ID, m.MType, m.Value)
-		return err
+		if err != nil {
+			return fmt.Errorf("failed to insert gauge metric:%w", err)
+		}
 	case metrics.CounterName:
 		_, err := tx.Exec(`
 			INSERT INTO Metrics (ID, MType, Delta)
@@ -187,8 +190,11 @@ func addMetric(tx *sql.Tx, m metrics.Metric) error {
 			ON CONFLICT (ID)
 			DO UPDATE SET Delta = Metrics.Delta + EXCLUDED.Delta, MType = EXCLUDED.MType
 		`, m.ID, m.MType, m.Delta)
-		return err
+		if err != nil {
+			return fmt.Errorf("failed to insert counter metric:%w", err)
+		}
 	default:
 		return metrics.ErrIncorrectMetricType
 	}
+	return nil
 }

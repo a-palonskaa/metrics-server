@@ -34,7 +34,7 @@ func (ms MemStorage) GetAllMetrics(ctx context.Context) []metrics.Metric {
 func (ms MemStorage) UpdateMetrics(ctx context.Context, mt metrics.Metrics) error {
 	if err := ms.storage.Update(ctx, mt); err != nil {
 		log.Error().Err(err).Msg("failed to add metric")
-		return err
+		return fmt.Errorf("failed to update metric:%w", err)
 	}
 	return nil
 }
