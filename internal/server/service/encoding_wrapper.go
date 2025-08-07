@@ -23,6 +23,8 @@ func (w *gzipResponseWriter) Close() error {
 	return w.gz.Close()
 }
 
+// gzipWriterPool is a sync.Pool that reuses gzip.Writer instances
+// to minimize allocation overhead during metrics compression.
 var gzipWriterPool = sync.Pool{
 	New: func() any {
 		gz, err := gzip.NewWriterLevel(io.Discard, gzip.BestSpeed)
@@ -33,12 +35,16 @@ var gzipWriterPool = sync.Pool{
 	},
 }
 
+// gzipReaderPool is a sync.Pool that reuses gzip.Reader instances
+// to minimize allocation overhead during metrics compression.
 var gzipReaderPool = sync.Pool{
 	New: func() any {
 		return &gzip.Reader{}
 	},
 }
 
+// WithCompression creates a middleware wrapper for decompressing request with gzip and compressing
+// response if header "Content-Encoding: gzip"/ "Accept-Encoding: gzip" presents
 func WithCompression(fn http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {

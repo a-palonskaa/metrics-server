@@ -1,3 +1,5 @@
+// Package server provides router for server, http-requests handlers,
+// middlewares for logging, encoding, hash signature checking
 package server
 
 import (
@@ -92,6 +94,14 @@ func (h ServerHandler) Router(r *chi.Mux) *chi.Mux {
 	return r
 }
 
+// CheckConnection check the connection to the database.
+//
+// @Summary Connection check
+// @Description Returns 200 OK if the database is reachable, 500 if not
+// @Tags Connection
+// @Success 200 {string} string "OK"
+// @Failure 500 {string} string "Database unreachable"
+// @Router /ping [get]
 func (h ServerHandler) CheckConnection(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 	defer cancel()
@@ -102,6 +112,17 @@ func (h ServerHandler) CheckConnection(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// UpdateMetricByURL updates a metric by name, type, and value.
+//
+// @Summary Update metric by URL
+// @Description Updates a metric by type, name, and value provided in the URL
+// @Tags Metrics
+// @Accept text/plain
+// @Produce text/plain
+// @Success 200 {string} string "Metric updated"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /update/{mType}/{name}/{value} [post]
 func (h ServerHandler) UpdateMetricByURL(w http.ResponseWriter, r *http.Request) {
 	mType := chi.URLParam(r, "mType")
 	name := chi.URLParam(r, "name")
@@ -127,6 +148,19 @@ func (h ServerHandler) UpdateMetricByURL(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// GetMetricByBody returns the value of a metric from the JSON request body.
+//
+// @Summary Get a metric by request body
+// @Description Returns a metric from the JSON body by type and name
+// @Tags Metrics
+// @Accept application/json
+// @Produce application/json
+// @Param metric body metrics.RawMetric true "Metric data"
+// @Success 200 {object} metrics.RawMetric "Found metric"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 404 {string} string "Metric not found"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /value/ [post]
 func (h ServerHandler) GetMetricByBody(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -179,6 +213,18 @@ func (h ServerHandler) GetMetricByBody(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// UpdateMetric updates a metric from a JSON request body.
+//
+// @Summary Update a metric
+// @Description Updates a metric from a JSON request body (type, name, and value)
+// @Tags Metrics
+// @Accept application/json
+// @Produce application/json
+// @Param metric body metrics.RawMetric true "Metric to update"
+// @Success 200 {object} metrics.RawMetric "Updated metric"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /update/ [post]
 func (h ServerHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
@@ -229,6 +275,18 @@ func (h ServerHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// UpdateMetrics updates list of metric from a JSON request body.
+//
+// @Summary Update list of metric
+// @Description Accepts an array of metrics in JSON format and stores them
+// @Tags Metrics
+// @Accept application/json
+// @Produce application/json
+// @Param metrics body metrics.RawMetrics true "List of metrics to update"
+// @Success 200 {object} metrics.RawMetrics "Updated metrics"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /updates/ [post]
 func (h ServerHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
@@ -279,6 +337,16 @@ func (h ServerHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetMetricValueByURI returns the value of a metric by type and name.
+//
+// @Summary Get a metric by name and type
+// @Description Returns a metric from the JSON body by type and name
+// @Tags Metrics
+// @Produce text/plain
+// @Success 200 {string} string "Metric value"
+// @Failure 404 {string} string "Metric not found"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /value/{mType}/{name} [get]
 func (h ServerHandler) GetMetricValueByURI(w http.ResponseWriter, r *http.Request) {
 	mType := chi.URLParam(r, "mType")
 	name := chi.URLParam(r, "name")
@@ -300,6 +368,15 @@ func (h ServerHandler) GetMetricValueByURI(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// GetAllStoredMetrics returns all stored metrics in an HTML table.
+//
+// @Summary Returns a list of all metrics
+// @Description Renders all stored gauge and counter metrics as an HTML table
+// @Tags Metrics
+// @Produce text/html
+// @Success 200 {string} string "HTML with list of metrics"
+// @Failure 500 {string} string "Template error"
+// @Router /value/ [get]
 func (h ServerHandler) GetAllStoredMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -317,6 +394,14 @@ func (h ServerHandler) GetAllStoredMetrics(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// Root shows a root page.
+//
+// @Summary Root page
+// @Description Returns 200 OK if request method is GET
+// @Tags Root
+// @Success 200 {string} string "OK"
+// @Failure 400 {string} string "Method not allowed"
+// @Router / [get]
 func (h ServerHandler) Root(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

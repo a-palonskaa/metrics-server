@@ -1,0 +1,212 @@
+basePath: /
+definitions:
+  metrics.RawMetric:
+    properties:
+      delta:
+        description: counter
+        type: integer
+      id:
+        type: string
+      type:
+        type: string
+      value:
+        description: gauge
+        type: number
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: polonskaia.aa@phystech.edu
+  description: metrics storage server
+  title: MetricsServer API
+  version: "1.0"
+paths:
+  /:
+    get:
+      description: Returns 200 OK if request method is GET
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Method not allowed
+          schema:
+            type: string
+      summary: Root page
+      tags:
+      - Root
+  /ping:
+    get:
+      description: Returns 200 OK if the database is reachable, 500 if not
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "500":
+          description: Database unreachable
+          schema:
+            type: string
+      summary: Connection check
+      tags:
+      - Connection
+  /update/:
+    post:
+      consumes:
+      - application/json
+      description: Updates a metric from a JSON request body (type, name, and value)
+      parameters:
+      - description: Metric to update
+        in: body
+        name: metric
+        required: true
+        schema:
+          $ref: '#/definitions/metrics.RawMetric'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated metric
+          schema:
+            $ref: '#/definitions/metrics.RawMetric'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Update a metric
+      tags:
+      - Metrics
+  /update/{mType}/{name}/{value}:
+    post:
+      consumes:
+      - text/plain
+      description: Updates a metric by type, name, and value provided in the URL
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Metric updated
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Update metric by URL
+      tags:
+      - Metrics
+  /updates/:
+    post:
+      consumes:
+      - application/json
+      description: Accepts an array of metrics in JSON format and stores them
+      parameters:
+      - description: List of metrics to update
+        in: body
+        name: metrics
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/metrics.RawMetric'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated metrics
+          schema:
+            items:
+              $ref: '#/definitions/metrics.RawMetric'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Update list of metric
+      tags:
+      - Metrics
+  /value/:
+    get:
+      description: Renders all stored gauge and counter metrics as an HTML table
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML with list of metrics
+          schema:
+            type: string
+        "500":
+          description: Template error
+          schema:
+            type: string
+      summary: Returns a list of all metrics
+      tags:
+      - Metrics
+    post:
+      consumes:
+      - application/json
+      description: Returns a metric from the JSON body by type and name
+      parameters:
+      - description: Metric data
+        in: body
+        name: metric
+        required: true
+        schema:
+          $ref: '#/definitions/metrics.RawMetric'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Found metric
+          schema:
+            $ref: '#/definitions/metrics.RawMetric'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Metric not found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Get a metric by request body
+      tags:
+      - Metrics
+  /value/{mType}/{name}:
+    get:
+      description: Returns a metric from the JSON body by type and name
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Metric value
+          schema:
+            type: string
+        "404":
+          description: Metric not found
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Get a metric by name and type
+      tags:
+      - Metrics
+swagger: "2.0"

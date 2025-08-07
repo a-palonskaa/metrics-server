@@ -1,3 +1,4 @@
+// Package database provides a PostgreSQL-based implementation of a metrics repository.
 package database
 
 import (
@@ -14,11 +15,14 @@ import (
 	errhandlers "github.com/a-palonskaa/metrics-server/pkg/err_handlers"
 )
 
+// DBStorage is a PostgreSQL-backed metrics storage
 type DBStorage struct {
 	mu sync.RWMutex
 	DB *sql.DB
 }
 
+// New initializes a new DBStorage by connecting to the provided PostgreSQL database
+// address and creating the required metrics table.
 func New(databaseAddr string) (*DBStorage, bool) {
 	db, err := errhandlers.RetriableErrHadler(
 		func() (*sql.DB, error) { return sql.Open("pgx", databaseAddr) },

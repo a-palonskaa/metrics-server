@@ -13,14 +13,21 @@ import (
 
 type hashResponseWriter struct {
 	http.ResponseWriter
-	bufer []byte
+	bufer  []byte
+	status int
 }
 
 func (w *hashResponseWriter) Write(bufer []byte) (int, error) {
 	w.bufer = bufer
-	return w.ResponseWriter.Write(bufer)
+	return 0, nil
 }
 
+func (w *hashResponseWriter) WriteHeader(statusCode int) {
+	w.status = statusCode
+}
+
+// CheckHash creates a middleware wrapper for checking SHA256 hash signature (optionally: command line Key) and
+// signes a response with SHA256 hash
 func CheckHash(key string) func(fn http.Handler) http.Handler {
 	return func(fn http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +63,18 @@ func CheckHash(key string) func(fn http.Handler) http.Handler {
 				if err != nil {
 					log.Error().Err(err).Msg("failed to calculate hash")
 				}
+
 				w.Header().Set("HashSHA256", hex.EncodeToString(dst))
+
+				if myWriter.status == 0 {
+					myWriter.status = http.StatusOK
+				}
+				w.WriteHeader(myWriter.status)
+
+				_, err = w.Write(myWriter.bufer)
+				if err != nil {
+					log.Error().Err(err).Msg("failed to write response body")
+				}
 				return
 			}
 			fn.ServeHTTP(w, r)

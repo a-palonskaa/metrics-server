@@ -14,20 +14,24 @@ import (
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 )
 
+// MemStorage is a usecase layer for metrics collection and storage.
 type MemStorage struct {
 	storage MetricsRepository
 }
 
+// NewMemStorageUsecase creates a MemStorage with the given repository.
 func NewMemStorageUsecase(storage MetricsRepository) MemStorage {
 	return MemStorage{
 		storage: storage,
 	}
 }
 
+// ListAllMetrics returns all metrics currently stored in the repository.
 func (ms MemStorage) ListAllMetrics(ctx context.Context) metrics.Metrics {
 	return metrics.Metrics(ms.storage.List(ctx))
 }
 
+// UpdateMetrics collects runtime metrics and stores them.
 func (ms MemStorage) UpdateMetrics(ctx context.Context) error {
 	memStats := &runtime.MemStats{}
 	runtime.ReadMemStats(memStats)
@@ -71,6 +75,7 @@ func (ms MemStorage) UpdateMetrics(ctx context.Context) error {
 	return nil
 }
 
+// UpdateSysMetrics collects system metrics and stores them.
 func (ms MemStorage) UpdateSysMetrics(ctx context.Context) error {
 	memStat, err := mem.VirtualMemoryWithContext(ctx)
 	if err != nil {

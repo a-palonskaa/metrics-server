@@ -1,4 +1,6 @@
-package factory
+// Package repository provides a constructor for initializing the metrics storage
+// based on configuration parameters.
+package repository
 
 import (
 	"github.com/rs/zerolog/log"
@@ -9,6 +11,7 @@ import (
 	usecase "github.com/a-palonskaa/metrics-server/internal/server/usecase"
 )
 
+// NewParams holds configuration parameters for initializing a metrics repository.
 type NewParams struct {
 	DatabaseAddr  string
 	FilePath      string
@@ -16,6 +19,7 @@ type NewParams struct {
 	Restore       bool
 }
 
+// New initializes and returns a MetricsRepository based on the provided parameters.
 func New(p NewParams) usecase.MetricsRepository {
 	var metricsStorage usecase.MetricsRepository
 	if p.DatabaseAddr != "" {

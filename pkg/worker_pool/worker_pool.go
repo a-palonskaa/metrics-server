@@ -1,3 +1,4 @@
+// Package workerpool provides a worker pool implementation that can process concurrent tasks with rate limiting.
 package workerpool
 
 import (
@@ -5,6 +6,7 @@ import (
 	"sync"
 )
 
+// WorkerPool manages a fixed-size pool of goroutines that execute tasks concurrently.
 type WorkerPool struct {
 	jobs    chan func(ctx context.Context) error
 	results chan error
@@ -16,6 +18,7 @@ type WorkerPool struct {
 	stopOnce  sync.Once
 }
 
+// New creates and starts a new WorkerPool with the given rateLimit (number of concurrent workers)
 func New(rateLimit int, ctx context.Context) *WorkerPool {
 	if rateLimit < 1 {
 		rateLimit = 1
@@ -46,6 +49,8 @@ func New(rateLimit int, ctx context.Context) *WorkerPool {
 	return w
 }
 
+// Close shuts down the worker pool, waits for all workers to finish,
+// and closes the jobs and results channels.
 func (w *WorkerPool) Close() {
 	w.stopOnce.Do(func() {
 		w.wg.Wait()
@@ -54,6 +59,8 @@ func (w *WorkerPool) Close() {
 	})
 }
 
+// AddTask submits a new job to the worker pool. The job must be a function that
+// accepts a context and returns an error. If the context is done, the job is discarded.
 func (w *WorkerPool) AddTask(j func(ctx context.Context) error) {
 	select {
 	case w.jobs <- j:
@@ -62,6 +69,7 @@ func (w *WorkerPool) AddTask(j func(ctx context.Context) error) {
 
 }
 
+// Result returns a receive-only channel through which job results (errors) can be collected.
 func (w *WorkerPool) Result() <-chan error {
 	return w.results
 }

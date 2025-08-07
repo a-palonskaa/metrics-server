@@ -1,3 +1,5 @@
+// Package main provides metrics storage server
+// made by @aliffka
 package main
 
 import (

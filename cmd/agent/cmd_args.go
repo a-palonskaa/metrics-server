@@ -1,3 +1,6 @@
+// Package main provides agent that send runtime and system metrics to server
+// made by @aliffka
+
 package main
 
 import (

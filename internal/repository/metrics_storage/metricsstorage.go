@@ -1,3 +1,4 @@
+// Package metricsstorage provides an in-memory implementation of the MetricsRepository interface.
 package metricsstorage
 
 import (
@@ -9,11 +10,13 @@ import (
 	metrics "github.com/a-palonskaa/metrics-server/internal/models/metrics"
 )
 
+// MetricsStorage represents an in-memory storage for metrics.
 type MetricsStorage struct {
 	mu      sync.RWMutex
 	metrics map[string]map[string]metrics.Metric
 }
 
+// New creates and returns a new MetricsStorage instance.
 func New() *MetricsStorage {
 	return &MetricsStorage{
 		metrics: make(map[string]map[string]metrics.Metric),

@@ -1,3 +1,5 @@
+// Package errhandlers provides utilities for error classification and
+// retry mechanisms with exponential backoff.
 package errhandlers
 
 import (
@@ -9,6 +11,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// RetriableErrHadler executes a function `f` with retry logic based on a
+// predefined backoff schedule (1s, 3s, 5s). If `f` returns an error, the
+// `compare` function determines whether the error is retryable.
+//
+// Returns the result of `f` or the last error encountered after all retries.
 func RetriableErrHadler[T any](f func() (T, error), compare func(error) bool) (T, error) {
 	backoffScedule := []time.Duration{
 		1 * time.Second,
@@ -36,6 +43,10 @@ func RetriableErrHadler[T any](f func() (T, error), compare func(error) bool) (T
 	return args, err
 }
 
+// RetriableErrHadlerVoid is a convenience wrapper around RetriableErrHadler
+// for use with functions that return only an error.
+//
+// Executes the function with retry logic and returns the final error.
 func RetriableErrHadlerVoid(f func() error, compare func(error) bool) error {
 	_, err := RetriableErrHadler(func() (struct{}, error) {
 		return struct{}{}, f()
