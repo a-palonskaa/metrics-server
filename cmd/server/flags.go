@@ -34,7 +34,7 @@ type Config struct {
 	StoreInterval   int    `env:"STORE_INTERVAL" yaml:"store_interval,omitempty"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH" yaml:"store_file"`
 	Restore         bool   `env:"RESTORE" yaml:"restore,omitempty"`
-	DatabaseAddr    string `env:"DATABASE_DSN" yaml:"database_dns"`
+	DatabaseAddr    string `env:"DATABASE_DSN" yaml:"database_dsn"`
 	Key             string `env:"KEY" yaml:"crypto_key"`
 	ConfigFile      string `env:"CONFIG"`
 	TrustedSubnet   string `env:"TRUSTED_SUBNET" yaml:"trusted_subnet"`
@@ -46,19 +46,18 @@ var Flags Config
 func initConfig(v *viper.Viper, configFile string) error {
 	v.AutomaticEnv()
 
-	v.SetDefault("endpointaddr", defaultEndpointAddr)
-	v.SetDefault("storeinterval", defaultStoreInterval)
-	v.SetDefault("filestoragepath", defaultFileStoragePath)
+	v.SetDefault("address", defaultEndpointAddr)
+	v.SetDefault("store_interval", defaultStoreInterval)
+	v.SetDefault("store_file", defaultFileStoragePath)
 	v.SetDefault("restore", defaultRestore)
-	v.SetDefault("databaseaddr", defaultDatabaseAddr)
-	v.SetDefault("key", defaultKey)
-	v.SetDefault("config", defaultConfigFile)
-	v.SetDefault("trustedsubnet", defaultTrustedSubnet)
+	v.SetDefault("database_dsn", defaultDatabaseAddr)
+	v.SetDefault("crypto_key", defaultKey)
+	v.SetDefault("trusted_subnet", defaultTrustedSubnet)
 	v.SetDefault("protocol", defaultProtocol)
 
 	cfgFile := configFile
-	if cfgFile == "" && v.GetString("configure") != "" {
-		cfgFile = v.GetString("configure")
+	if cfgFile == "" && v.GetString("config") != "" {
+		cfgFile = v.GetString("config")
 	}
 
 	if cfgFile != "" {

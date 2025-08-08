@@ -62,7 +62,6 @@ var cmd = &cobra.Command{
 		"\t\x1b]8;;\x1b\\"),
 	PreRun: func(cmd *cobra.Command, args []string) {
 		v := viper.New()
-
 		if err := initConfig(v, Flags.ConfigFile); err != nil {
 			log.Error().Err(err).Msg("failed to load config")
 		}
@@ -71,7 +70,7 @@ var cmd = &cobra.Command{
 		_ = v.BindPFlag("storeinterval", cmd.PersistentFlags().Lookup("i"))
 		_ = v.BindPFlag("restore", cmd.PersistentFlags().Lookup("r"))
 		_ = v.BindPFlag("store_file", cmd.PersistentFlags().Lookup("f"))
-		_ = v.BindPFlag("database_dns", cmd.PersistentFlags().Lookup("d"))
+		_ = v.BindPFlag("database_dsn", cmd.PersistentFlags().Lookup("d"))
 		_ = v.BindPFlag("crypto_key", cmd.PersistentFlags().Lookup("k"))
 		_ = v.BindPFlag("trusted_subnet", cmd.PersistentFlags().Lookup("t"))
 		_ = v.BindPFlag("protocol", cmd.PersistentFlags().Lookup("protocol"))
@@ -81,7 +80,7 @@ var cmd = &cobra.Command{
 			StoreInterval:   v.GetInt("store_interval"),
 			FileStoragePath: v.GetString("store_file"),
 			Restore:         v.GetBool("restore"),
-			DatabaseAddr:    v.GetString("database_dns"),
+			DatabaseAddr:    v.GetString("database_dsn"),
 			Key:             v.GetString("crypto_key"),
 			TrustedSubnet:   v.GetString("trusted_subnet"),
 			Protocol:        v.GetString("protocol"),
@@ -96,12 +95,15 @@ var cmd = &cobra.Command{
 			Restore:       Flags.Restore,
 		})
 		defer func() {
-			if err := memStorage.Close(); err != nil {
-				log.Error().Err(err).Msg("error closing memStorage")
-				return
+			if memStorage != nil {
+				if err := memStorage.Close(); err != nil {
+					log.Error().Err(err).Msg("error closing memStorage")
+					return
+				}
 			}
 		}()
 
+		log.Info().Msgf("Database addr is %s", Flags.DatabaseAddr)
 		connector := database.NewConn(Flags.DatabaseAddr)
 
 		msUsecase := usecase.NewMemStorage(memStorage)
