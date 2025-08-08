@@ -67,9 +67,9 @@ var cmd = &cobra.Command{
 		}
 
 		_ = v.BindPFlag("address", cmd.PersistentFlags().Lookup("a"))
-		_ = v.BindPFlag("storeinterval", cmd.PersistentFlags().Lookup("i"))
-		_ = v.BindPFlag("restore", cmd.PersistentFlags().Lookup("r"))
+		_ = v.BindPFlag("store_interval", cmd.PersistentFlags().Lookup("i"))
 		_ = v.BindPFlag("store_file", cmd.PersistentFlags().Lookup("f"))
+		_ = v.BindPFlag("restore", cmd.PersistentFlags().Lookup("r"))
 		_ = v.BindPFlag("database_dsn", cmd.PersistentFlags().Lookup("d"))
 		_ = v.BindPFlag("crypto_key", cmd.PersistentFlags().Lookup("k"))
 		_ = v.BindPFlag("trusted_subnet", cmd.PersistentFlags().Lookup("t"))

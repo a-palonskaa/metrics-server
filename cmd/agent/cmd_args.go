@@ -76,7 +76,7 @@ var cmd = &cobra.Command{
 			Protocol:       v.GetString("protocol"),
 		}
 		validateFlags()
-	},
+	}
 	Run: func(cmd *cobra.Command, args []string) {
 		var handler service.Handler
 		switch Flags.Protocol {
