@@ -64,7 +64,7 @@ var cmd = &cobra.Command{
 		_ = v.BindPFlag("poll_interval", cmd.PersistentFlags().Lookup("pollinterval"))
 		_ = v.BindPFlag("report_interval", cmd.PersistentFlags().Lookup("reportinterval"))
 		_ = v.BindPFlag("key", cmd.PersistentFlags().Lookup("key"))
-		_ = v.BindPFlag("rate_limit", cmd.PersistentFlags().Lookup("ratelimit"))
+		_ = v.BindPFlag("rate_limit", cmd.PersistentFlags().Lookup("limit"))
 		_ = v.BindPFlag("protocol", cmd.PersistentFlags().Lookup("protocol"))
 
 		Flags = Config{
