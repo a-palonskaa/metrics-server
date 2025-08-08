@@ -35,7 +35,7 @@ type Config struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH" yaml:"store_file"`
 	Restore         bool   `env:"RESTORE" yaml:"restore,omitempty"`
 	DatabaseAddr    string `env:"DATABASE_DSN" yaml:"database_dsn"`
-	Key             string `env:"KEY" yaml:"crypto_key"`
+	Key             string `env:"KEY" yaml:"key"`
 	ConfigFile      string `env:"CONFIG"`
 	TrustedSubnet   string `env:"TRUSTED_SUBNET" yaml:"trusted_subnet"`
 	Protocol        string `env:"PROTOCOL" yaml:"protocol"`
@@ -51,7 +51,7 @@ func initConfig(v *viper.Viper, configFile string) error {
 	v.SetDefault("store_file", defaultFileStoragePath)
 	v.SetDefault("restore", defaultRestore)
 	v.SetDefault("database_dsn", defaultDatabaseAddr)
-	v.SetDefault("crypto_key", defaultKey)
+	v.SetDefault("key", defaultKey)
 	v.SetDefault("trusted_subnet", defaultTrustedSubnet)
 	v.SetDefault("protocol", defaultProtocol)
 

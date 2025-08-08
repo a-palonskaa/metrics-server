@@ -28,13 +28,13 @@ const (
 )
 
 type Config struct {
-	EndpointAddr   string `env:"ADDRESS" json:"address"`
-	ReportInterval int    `env:"STORE_INTERVAL" json:"store_interval,omitempty"`
-	PollInterval   int    `env:"POLL_INTERVAL" json:"poll_interval,omitempty"`
-	Key            string `env:"KEY" json:"crypto_key"`
-	RateLimit      int    `env:"RATE_LIMIT" json:"rate_limit,omitempty"`
+	EndpointAddr   string `env:"ADDRESS" yaml:"address"`
+	ReportInterval int    `env:"STORE_INTERVAL" yaml:"store_interval,omitempty"`
+	PollInterval   int    `env:"POLL_INTERVAL" yaml:"poll_interval,omitempty"`
+	Key            string `env:"KEY" yaml:"key"`
+	RateLimit      int    `env:"RATE_LIMIT" yaml:"rate_limit,omitempty"`
 	ConfigFile     string `env:"CONFIG"`
-	Protocol       string `env:"PROTOCOL" json:"protocol"`
+	Protocol       string `env:"PROTOCOL" yaml:"protocol"`
 }
 
 var Flags Config
