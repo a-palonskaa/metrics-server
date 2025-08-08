@@ -81,7 +81,7 @@ var cmd = &cobra.Command{
 		var handler service.Handler
 		switch Flags.Protocol {
 		case restAPI:
-			log.Info().Msgf("%s\n%s\n%s", Flags.EndpointAddr, Flags.Key)
+			log.Info().Msgf("%s\n%s", Flags.EndpointAddr, Flags.Key)
 			client := resty.New().SetBaseURL("http://" + Flags.EndpointAddr)
 			handler = agentrest.NewHandler(memstorage.New(), Flags.Key, client)
 		case grpcAPI:

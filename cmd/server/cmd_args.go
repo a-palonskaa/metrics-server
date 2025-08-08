@@ -103,7 +103,6 @@ var cmd = &cobra.Command{
 			}
 		}()
 
-		log.Info().Msgf("Database addr is %s", Flags.DatabaseAddr)
 		connector := database.NewConn(Flags.DatabaseAddr)
 
 		msUsecase := usecase.NewMemStorage(memStorage)
@@ -126,7 +125,7 @@ var cmd = &cobra.Command{
 }
 
 func runRESTServer(msUsecase usecase.MemStorage, pingUsecase usecase.Ping) error {
-	log.Info().Msgf("%s\n%s\n%s", Flags.EndpointAddr, Flags.Key)
+	log.Info().Msgf("%s\n%s", Flags.EndpointAddr, Flags.Key)
 	serverHandler := serverrest.New(serverrest.Params{
 		MsUsecase:     msUsecase,
 		PingUsecase:   pingUsecase,
