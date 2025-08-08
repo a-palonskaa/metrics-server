@@ -46,8 +46,7 @@ func initConfig(v *viper.Viper, configFile string) error {
 	v.SetDefault("report_interval", defaultReportInterval)
 	v.SetDefault("poll_interval", defaultPollInterval)
 	v.SetDefault("rate_limit", defaultRateLimit)
-	v.SetDefault("key", defaultKey)
-	v.SetDefault("config", defaultConfigFile)
+	v.SetDefault("crypto_key", defaultKey)
 	v.SetDefault("protocol", defaultProtocol)
 
 	cfgFile := configFile
@@ -61,7 +60,6 @@ func initConfig(v *viper.Viper, configFile string) error {
 			return fmt.Errorf("failed to read config file: %w", err)
 		}
 	}
-
 	return nil
 }
 

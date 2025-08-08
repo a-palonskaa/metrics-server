@@ -63,7 +63,7 @@ var cmd = &cobra.Command{
 		_ = v.BindPFlag("address", cmd.PersistentFlags().Lookup("address"))
 		_ = v.BindPFlag("poll_interval", cmd.PersistentFlags().Lookup("pollinterval"))
 		_ = v.BindPFlag("report_interval", cmd.PersistentFlags().Lookup("reportinterval"))
-		_ = v.BindPFlag("key", cmd.PersistentFlags().Lookup("key"))
+		_ = v.BindPFlag("crypto_key", cmd.PersistentFlags().Lookup("key"))
 		_ = v.BindPFlag("rate_limit", cmd.PersistentFlags().Lookup("ratelimit"))
 		_ = v.BindPFlag("protocol", cmd.PersistentFlags().Lookup("protocol"))
 
@@ -71,7 +71,7 @@ var cmd = &cobra.Command{
 			EndpointAddr:   v.GetString("address"),
 			PollInterval:   v.GetInt("poll_interval"),
 			ReportInterval: v.GetInt("report_interval"),
-			Key:            v.GetString("key"),
+			Key:            v.GetString("crypto_key"),
 			RateLimit:      v.GetInt("rate_limit"),
 			Protocol:       v.GetString("protocol"),
 		}
