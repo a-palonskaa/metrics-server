@@ -42,10 +42,10 @@ var Flags Config
 func initConfig(v *viper.Viper, configFile string) error {
 	v.AutomaticEnv()
 
-	v.SetDefault("endpointaddr", defaultEndpointAddr)
-	v.SetDefault("reportinterval", defaultReportInterval)
-	v.SetDefault("pollinterval", defaultPollInterval)
-	v.SetDefault("ratelimit", defaultRateLimit)
+	v.SetDefault("address", defaultEndpointAddr)
+	v.SetDefault("report_interval", defaultReportInterval)
+	v.SetDefault("poll_interval", defaultPollInterval)
+	v.SetDefault("rate_limit", defaultRateLimit)
 	v.SetDefault("key", defaultKey)
 	v.SetDefault("config", defaultConfigFile)
 	v.SetDefault("protocol", defaultProtocol)

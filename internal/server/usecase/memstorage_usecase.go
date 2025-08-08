@@ -44,7 +44,7 @@ func (ms MemStorage) UpdateMetrics(ctx context.Context, mt metrics.Metrics) erro
 func (ms MemStorage) GetMetric(ctx context.Context, metric *metrics.Metric) error {
 	var err error
 	if !metrics.IsTypeAllowed(metric.MType) {
-		log.Error().Msgf("invalid type %sd", metric.MType)
+		log.Error().Msgf("invalid type %s", metric.MType)
 		return fmt.Errorf("%w: %s", metrics.ErrIncorrectMetricType, metric.MType)
 	}
 	*metric, err = ms.storage.Get(ctx, metric.MType, metric.ID)
