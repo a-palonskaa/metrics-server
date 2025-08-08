@@ -58,7 +58,10 @@ func CreateTables(db *sql.DB) error {
 			Delta BIGINT,
 			Value DOUBLE PRECISION
 		);`)
-		return fmt.Errorf("failed to create table:%w", err)
+		if err != nil {
+			return fmt.Errorf("failed to create table:%w", err)
+		}
+		return nil
 	}, errhandlers.CompareErrSQL)
 }
 
