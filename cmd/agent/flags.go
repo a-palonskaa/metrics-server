@@ -46,7 +46,7 @@ func initConfig(v *viper.Viper, configFile string) error {
 	v.SetDefault("report_interval", defaultReportInterval)
 	v.SetDefault("poll_interval", defaultPollInterval)
 	v.SetDefault("rate_limit", defaultRateLimit)
-	v.SetDefault("crypto_key", defaultKey)
+	v.SetDefault("key", defaultKey)
 	v.SetDefault("protocol", defaultProtocol)
 
 	cfgFile := configFile
