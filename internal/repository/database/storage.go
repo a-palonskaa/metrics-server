@@ -124,7 +124,6 @@ func (db *DBStorage) Get(ctx context.Context, mType, name string) (metrics.Metri
 	} else if metric.MType == metrics.CounterName && delta.Valid {
 		metric.Delta = delta.Int64
 	}
-
 	return metric, nil
 }
 
